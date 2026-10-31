@@ -10,6 +10,8 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { QuizEditorPage } from './pages/live/QuizEditorPage';
+import { QuizListPage } from './pages/live/QuizListPage';
 import { ThemeProvider } from './theme/ThemeProvider';
 
 export function AppRoutes() {
@@ -22,8 +24,10 @@ export function AppRoutes() {
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>
-          <Route index element={<Navigate to="curso" replace />} />
+          <Route index element={<Navigate to="evaluaciones" replace />} />
           <Route path="curso" element={<CourseOverviewPage />} />
+          <Route path="evaluaciones" element={<QuizListPage />} />
+          <Route path="evaluaciones/:quizId" element={<QuizEditorPage />} />
           {/* P4: pantallas del participante */}
           <Route path="jugar" element={<JoinPlaceholderPage />} />
           <Route path="perfil" element={<ProfilePage />} />
