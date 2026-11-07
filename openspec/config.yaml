@@ -1,0 +1,14 @@
+schema: spec-driven
+
+context: |
+  Frontend React + TypeScript (Vite) de ProfeLink · Evaluaciones en vivo.
+  Consume la API NestJS Back-Proyecto2 (REST + Socket.IO namespace /sessions)
+  y Supabase Auth (solo clave pública). El backend es la autoridad de tiempos,
+  puntajes y estados; React solo muestra sobres del servidor y envía comandos.
+  Idioma de la interfaz y de la documentación: español.
+
+rules:
+  proposal:
+    - Indicar qué contrato REST o evento Socket.IO se consume y quién es su dueño (P1/P2).
+  tasks:
+    - Cada tarea debe tener prueba automatizada (Vitest o Playwright) y una prueba manual descrita.
