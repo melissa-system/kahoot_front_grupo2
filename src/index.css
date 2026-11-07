@@ -88,18 +88,62 @@ body {
   background-image: linear-gradient(90deg, #3b82f6 0%, #6d5bf5 55%, #a855f7 100%);
 }
 
+/*
+ * Hero: plano técnico a juego con el búho vitruviano (VitruvianOwl).
+ * Retícula dorada fina con líneas maestras cada 5 celdas, resplandor dorado
+ * detrás de la figura y, en oscuro, fondo negro con puntos de "estrellas".
+ */
 .pl-hero-bg {
-  background:
-    radial-gradient(circle at 20% 10%, rgb(59 130 246 / 0.12), transparent 40%),
-    radial-gradient(circle at 85% 30%, rgb(168 85 247 / 0.10), transparent 40%),
-    var(--pl-bg);
+  --pl-gold: 212 169 58;
+  --pl-glow: 59 130 246;
+  background-color: var(--pl-bg);
+  background-image:
+    radial-gradient(ellipse 55% 50% at 74% 28%, rgb(var(--pl-glow) / 0.18), transparent 70%),
+    linear-gradient(rgb(var(--pl-gold) / 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--pl-gold) / 0.16) 1px, transparent 1px),
+    linear-gradient(rgb(var(--pl-gold) / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--pl-gold) / 0.08) 1px, transparent 1px);
+  background-size:
+    auto,
+    240px 240px,
+    240px 240px,
+    48px 48px,
+    48px 48px;
+  background-position: center top, center top, center top, center top, center top;
 }
 
 .dark .pl-hero-bg {
-  background:
-    radial-gradient(circle at 20% 10%, rgb(59 130 246 / 0.16), transparent 45%),
-    radial-gradient(circle at 85% 30%, rgb(168 85 247 / 0.12), transparent 45%),
-    #0f1424;
+  /* Azul marino del swatch de referencia (muy cercano al navbar #131a2b). */
+  background-color: #11192c;
+  background-image:
+    radial-gradient(ellipse 55% 50% at 74% 28%, rgb(var(--pl-glow) / 0.28), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 15% 85%, rgb(59 130 246 / 0.10), transparent 70%),
+    linear-gradient(rgb(var(--pl-gold) / 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--pl-gold) / 0.14) 1px, transparent 1px),
+    linear-gradient(rgb(var(--pl-gold) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--pl-gold) / 0.05) 1px, transparent 1px),
+    /* Estrellas reales del spritesheet del búho (franjas vacías de los
+       fotogramas, public/images/owl-stars.jpg). Con "screen" su negro toma
+       el color del hero y solo quedan los puntos. */
+    url('/images/owl-stars.jpg');
+  background-size:
+    auto, auto,
+    240px 240px,
+    240px 240px,
+    48px 48px,
+    48px 48px,
+    600px auto;
+  background-position: center top;
+  background-repeat: no-repeat, no-repeat, repeat, repeat, repeat, repeat, repeat;
+  background-blend-mode: normal, normal, normal, normal, normal, normal, screen;
+}
+
+/* Patrón dither (barra junto al titular del hero). */
+.pl-dither {
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 1px, var(--pl-fg) 1px, var(--pl-fg) 2px),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 1px, var(--pl-fg) 1px, var(--pl-fg) 2px);
+  background-size: 3px 3px;
 }
 
 @keyframes pl-pop {
@@ -108,6 +152,189 @@ body {
 }
 .pl-pop { animation: pl-pop 220ms ease-out both; }
 
-@media (prefers-reduced-motion: reduce) {
-  .pl-pop { animation: none; }
+/* Entradas y microinteracciones del hero. */
+@keyframes pl-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+@keyframes pl-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pl-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes pl-glow-pulse {
+  0%, 100% { box-shadow: 0 0 80px -16px rgb(59 130 246 / 0.45); }
+  50% { box-shadow: 0 0 110px -8px rgb(59 130 246 / 0.75); }
+}
+@keyframes pl-draw-line {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@keyframes pl-corner-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pl-eq {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1); }
+}
+@keyframes pl-scan {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+.pl-reveal {
+  animation: pl-fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--pl-delay, 0ms);
+}
+.pl-reveal-fade {
+  animation: pl-fade-in 800ms ease-out both;
+  animation-delay: var(--pl-delay, 0ms);
+}
+.pl-float {
+  animation:
+    pl-float 5.5s ease-in-out infinite,
+    pl-glow-pulse 4s ease-in-out infinite;
+}
+.pl-cta {
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 220ms ease,
+    color 180ms ease;
+}
+.pl-cta:hover { transform: translateY(-2px); }
+.pl-cta:active { transform: translateY(0); }
+.pl-cta-primary:hover { box-shadow: 0 12px 28px -12px rgb(59 130 246 / 0.7); }
+.pl-cta-arrow { transition: transform 180ms ease; }
+.pl-cta:hover .pl-cta-arrow { transform: translateX(4px); }
+.pl-feature-card {
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease;
+}
+.pl-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgb(59 130 246 / 0.45);
+  box-shadow: 0 18px 40px -28px rgb(59 130 246 / 0.55);
+}
+.pl-feature-card .pl-feature-icon {
+  transition: transform 220ms ease, color 220ms ease;
+}
+.pl-feature-card:hover .pl-feature-icon { transform: scale(1.12); }
+.pl-notation-line {
+  transform-origin: left center;
+  animation: pl-draw-line 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--pl-delay, 0ms);
+}
+.pl-corner {
+  animation: pl-corner-in 600ms ease-out both;
+  animation-delay: var(--pl-delay, 0ms);
+  transform-origin: center;
+}
+.pl-eq-bar {
+  transform-origin: bottom;
+  animation: pl-eq 1.2s ease-in-out infinite;
+  animation-delay: var(--pl-delay, 0ms);
+}
+.dark .pl-hero-bg {
+  animation: pl-scan 48s linear infinite;
+}
+
+/*
+ * Búho vitruviano (components/ui/VitruvianOwl.tsx).
+ * Hoja 4x2; cada capa muestra un fotograma desplazando la imagen completa
+ * (ancho 400 %, alto 200 %): columna c -> translateX(-c*25%), fila r -> translateY(-r*50%).
+ *   f5 = (0, -50%)   f6 = (-25%, -50%)   f7 = (-50%, -50%)   f8 = (-75%, -50%)
+ * Ciclo de 6 pasos (4.8 s): f8 f5 f6 f7 f6 f5. La capa A cambia de cuadro
+ * mientras la capa B la cubre y viceversa; la opacidad de B hace el fundido.
+ */
+/* Escenario del tamaño de un fotograma completo, desplazado para recortar el
+   9 % superior (y 14 % inferior) de fondo vacío: alto 100/0.77, top -9/0.77. */
+.pl-owl-stage {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -11.69%;
+  height: 129.87%;
+  /* El JPEG tiene fondo negro: con "screen" el negro se vuelve el color de la
+     tarjeta y los trazos blancos/dorados se mantienen. Se aplica al grupo, no a
+     cada capa, para que el fundido entre fotogramas siga cubriendo la capa de abajo. */
+  mix-blend-mode: screen;
+}
+.pl-owl-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400%;
+  height: 200%;
+  max-width: none;
+  transform: translate(-75%, -50%);
+  will-change: transform;
+}
+.pl-owl-layer-b { opacity: 0; will-change: transform, opacity; }
+
+@keyframes pl-owl-frames-a {
+  0%      { transform: translate(-75%, -50%); } /* f8 */
+  25%     { transform: translate(-25%, -50%); } /* f6 */
+  91.667% { transform: translate(-75%, -50%); } /* f8 */
+  100%    { transform: translate(-75%, -50%); }
+}
+@keyframes pl-owl-frames-b {
+  0%      { transform: translate(0%, -50%); }   /* f5 */
+  41.667% { transform: translate(-50%, -50%); } /* f7 */
+  75%     { transform: translate(0%, -50%); }   /* f5 */
+  100%    { transform: translate(0%, -50%); }
+}
+@keyframes pl-owl-fade-b {
+  0%      { opacity: 0.5; }
+  8.333%  { opacity: 0; }
+  25%     { opacity: 1; }
+  41.667% { opacity: 0; }
+  58.333% { opacity: 1; }
+  75%     { opacity: 0; }
+  91.667% { opacity: 1; }
+  100%    { opacity: 0.5; }
+}
+/* Respiración muy sutil del conjunto (plumaje). */
+@keyframes pl-owl-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
+
+.pl-owl-layer-a { animation: pl-owl-frames-a 4.8s step-end infinite; }
+.pl-owl-layer-b {
+  animation:
+    pl-owl-frames-b 4.8s step-end infinite,
+    pl-owl-fade-b 4.8s ease-in-out infinite;
+}
+.pl-owl-stage { animation: pl-owl-breathe 4.8s ease-in-out infinite; transform-origin: 50% 45%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-pop,
+  .pl-reveal,
+  .pl-reveal-fade,
+  .pl-float,
+  .pl-notation-line,
+  .pl-corner,
+  .pl-eq-bar,
+  .dark .pl-hero-bg { animation: none; }
+  .pl-cta,
+  .pl-cta-arrow,
+  .pl-feature-card,
+  .pl-feature-card .pl-feature-icon { transition: none; }
+  .pl-cta:hover,
+  .pl-feature-card:hover,
+  .pl-feature-card:hover .pl-feature-icon { transform: none; }
+  /* Búho estático en el fotograma de alas horizontales (f8). */
+  .pl-owl-layer-a,
+  .pl-owl-stage { animation: none; }
+  .pl-owl-layer-b { display: none; }
+}
+
