@@ -1,6 +1,8 @@
 import { BarChart3, BookOpen, CalendarDays, Radio } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import coin from '../assets/brand/taku-coin.png';
+import { isTeacher } from '../auth/roles';
+import { useAuth } from '../auth/useAuth';
 import { COURSE } from '../layout/course';
 
 export function CourseBanner({ subtitle = 'Actividades y Materiales del curso' }: { subtitle?: string }) {
@@ -28,6 +30,8 @@ const TABS = [
 
 /** Vista general del curso (placeholder de integración con la plataforma ProfeLink). */
 export function CourseOverviewPage() {
+  const { profile } = useAuth();
+  const teacher = isTeacher(profile);
   return (
     <div className="space-y-8">
       <CourseBanner />
@@ -39,7 +43,7 @@ export function CourseOverviewPage() {
         ))}
       </div>
       <Link
-        to="/app/evaluaciones"
+        to={teacher ? '/app/evaluaciones' : '/app/jugar'}
         className="flex flex-col items-start gap-4 rounded-2xl border border-line bg-surface p-6 transition hover:border-primary sm:flex-row sm:items-center"
       >
         <img src={coin} alt="" className="h-16 w-16" />
@@ -47,7 +51,11 @@ export function CourseOverviewPage() {
           <p className="flex items-center gap-2 text-xl font-bold">
             <Radio className="h-5 w-5 text-primary" /> Evaluaciones en vivo
           </p>
-          <p className="text-muted">Crea un cuestionario de verdadero o falso y juega con tu grupo en tiempo real.</p>
+          <p className="text-muted">
+            {teacher
+              ? 'Crea un cuestionario de verdadero o falso y juega con tu grupo en tiempo real.'
+              : 'Únete con el código de tu profesor y revisa tu puntaje cuando termine la partida.'}
+          </p>
         </div>
         <span className="font-semibold text-primary">Abrir →</span>
       </Link>

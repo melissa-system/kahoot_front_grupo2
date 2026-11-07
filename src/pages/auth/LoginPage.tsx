@@ -34,7 +34,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Iniciar sesión" subtitle="Entra para crear cuestionarios y dirigir partidas en vivo.">
+    <AuthLayout title="Iniciar sesión" subtitle="Entra para unirte a una sala o dirigir tus evaluaciones.">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         {formError && <Alert tone="danger">{formError}</Alert>}
         <TextField label="Correo" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />

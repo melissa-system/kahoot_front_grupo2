@@ -3,19 +3,22 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { TextField } from '../components/ui/Field';
 import { PageHeader } from '../components/ui/PageHeader';
+import { ProfileSkeleton } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../auth/useAuth';
 import { errorMessage } from '../lib/http';
 import { validateDisplayName } from '../lib/validation';
 
 export function ProfilePage() {
-  const { displayName, session, updateDisplayName } = useAuth();
+  const { displayName, session, profile, updateDisplayName } = useAuth();
   const toast = useToast();
   const [name, setName] = useState(displayName);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => setName(displayName), [displayName]);
+
+  if (!session) return <ProfileSkeleton />;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -35,7 +38,14 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Mi perfil" description="Este nombre se muestra a tus estudiantes en las salas que diriges." />
+      <PageHeader
+        title="Mi perfil"
+        description={
+          session && profile?.role === 'student'
+            ? 'Este nombre se muestra en las salas a las que te unes.'
+            : 'Este nombre se muestra a tus estudiantes en las salas que diriges.'
+        }
+      />
       <Card className="max-w-xl p-6">
         <form onSubmit={onSubmit} noValidate className="space-y-4">
           <TextField label="Correo" value={session?.user.email ?? ''} readOnly disabled />

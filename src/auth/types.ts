@@ -16,7 +16,7 @@ export interface AuthSession {
 export interface AuthAdapter {
   getSession(): Promise<AuthSession | null>;
   signIn(email: string, password: string): Promise<AuthSession>;
-  signUp(email: string, password: string, displayName: string): Promise<AuthSession | null>;
+  signUp(email: string, password: string, displayName: string, role?: 'teacher' | 'student'): Promise<AuthSession | null>;
   signOut(): Promise<void>;
   onChange(listener: (session: AuthSession | null) => void): () => void;
 }

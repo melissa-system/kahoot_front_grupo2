@@ -1,0 +1,76 @@
+:root {
+  --bg: #11192c;
+  --card: #1a2438;
+  --line: #2c3a55;
+  --fg: #f4f7fb;
+  --muted: #9aa8c2;
+  --primary: #3b82f6;
+  --danger: #f87171;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 16px/1.5 system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+main { max-width: 52rem; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+.eyebrow { letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); font-size: 0.75rem; font-weight: 700; }
+h1 { margin: 0.25rem 0 0.5rem; font-size: 2rem; }
+.lede { color: var(--muted); }
+code { font-family: ui-monospace, monospace; color: #93c5fd; }
+fieldset {
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 1rem;
+  margin: 1rem 0;
+  padding: 1rem 1.25rem 1.25rem;
+}
+legend { padding: 0 0.4rem; font-weight: 700; }
+label { display: block; margin-top: 0.75rem; font-size: 0.9rem; color: var(--muted); }
+label.inline { display: flex; align-items: center; gap: 0.5rem; margin: 0; color: var(--fg); }
+input {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  background: #0f1624;
+  color: var(--fg);
+}
+input[type='checkbox'] { width: auto; margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+button {
+  margin-top: 0.5rem;
+  border: 0;
+  border-radius: 0.7rem;
+  padding: 0.7rem 1.1rem;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: wait; }
+.status { color: var(--muted); margin: 0.5rem 0 0; }
+.error, #me {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  background: #0f1624;
+  border: 1px solid var(--line);
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.error { border-color: var(--danger); color: var(--danger); }
+#room { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+}
+.card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.meta { color: var(--muted); font-size: 0.9rem; }
+ol { margin: 0; padding-left: 1.2rem; }

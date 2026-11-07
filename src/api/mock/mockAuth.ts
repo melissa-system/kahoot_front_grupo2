@@ -40,15 +40,15 @@ export function createMockAuth(): AuthAdapter {
       emit(session);
       return session;
     },
-    async signUp(email, password, displayName) {
+    async signUp(email, password, displayName, role = 'student') {
       await delay();
       const data = db();
       if (data.users.some((u) => u.email.toLowerCase() === email.trim().toLowerCase()))
         throw new Error('Ya existe una cuenta con ese correo.');
-      const user: MockUser = { id: uuid(), email: email.trim(), password, displayName };
+      const user: MockUser = { id: uuid(), email: email.trim(), password, displayName, role };
       data.users.push(user);
       const now = new Date().toISOString();
-      data.profiles.push({ userId: user.id, displayName, createdAt: now, updatedAt: now });
+      data.profiles.push({ userId: user.id, displayName, role, createdAt: now, updatedAt: now });
       save();
       const session = toSession(user);
       persist(session.accessToken);

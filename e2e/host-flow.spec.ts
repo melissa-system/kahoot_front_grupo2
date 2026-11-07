@@ -47,7 +47,8 @@ test('recorrido del anfitrión: registro → quiz → imagen → sala → partid
   // Llegan participantes simulados por eventos
   await expect(page.getByRole('list', { name: 'Lista de participantes' }).getByRole('listitem')).toHaveCount(4, { timeout: 15_000 });
   await page.getByRole('button', { name: /Iniciar partida/ }).click();
-  await expect(page.getByText('Pregunta 1 de 1')).toBeVisible();
+  await page.getByRole('button', { name: 'Entre la vida y la muerte' }).click();
+  await expect(page.getByText('1/1')).toBeVisible();
   await expect(page.getByText(/la respuesta se revela al cerrar/)).toBeVisible();
 
   // Cierre y revisión (bots responden todos o vence el tiempo)

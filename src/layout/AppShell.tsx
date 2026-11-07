@@ -1,13 +1,16 @@
-import { BookOpen, ChevronLeft, Home, LogIn, LogOut, Menu, Radio, User, type LucideIcon } from 'lucide-react';
+import { BookOpen, ChevronLeft, Home, LogIn, LogOut, Menu, Radio, Trophy, User, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import githubDark from '../assets/brand/GitHub_dark.svg';
 import githubLight from '../assets/brand/GitHub_light.svg';
+import { isTeacher } from '../auth/roles';
 import { useAuth } from '../auth/useAuth';
 import { cn } from '../lib/cn';
 import { useTheme } from '../theme/ThemeProvider';
 import { Brand } from './Brand';
 import { COURSE } from './course';
+import { isLiveSessionPath } from './liveSession';
+import { SoundToggle } from './SoundToggle';
 import { ThemeToggle } from './ThemeToggle';
 
 interface NavItem {
@@ -18,19 +21,29 @@ interface NavItem {
   end?: boolean;
 }
 
-const SECTIONS: Array<{ title: string; items: NavItem[] }> = [
-  { title: 'Curso', items: [{ to: '/app/curso', label: 'Vista General', hint: 'Contenido del curso', icon: BookOpen }] },
-  {
-    title: 'Evaluaciones en vivo',
-    items: [
-      { to: '/app/evaluaciones', label: 'Mis cuestionarios', hint: 'Crear y dirigir partidas', icon: Radio },
-      { to: '/app/jugar', label: 'Unirse a una sala', hint: 'Responder con un código', icon: LogIn },
-    ],
-  },
-  { title: 'Mi cuenta', items: [{ to: '/app/perfil', label: 'Mi perfil', hint: 'Nombre visible', icon: User }] },
-];
+function navSections(teacher: boolean): Array<{ title: string; items: NavItem[] }> {
+  return [
+    { title: 'Curso', items: [{ to: '/app/curso', label: 'Vista General', hint: 'Contenido del curso', icon: BookOpen }] },
+    {
+      title: 'Evaluaciones en vivo',
+      items: teacher
+        ? [
+            { to: '/app/evaluaciones', label: 'Mis cuestionarios', hint: 'Crear y dirigir partidas', icon: Radio, end: true },
+            { to: '/app/evaluaciones/historial', label: 'Historial', hint: 'Ganadores y aciertos', icon: Trophy },
+            { to: '/app/jugar', label: 'Unirse a una sala', hint: 'Responder con un código', icon: LogIn },
+          ]
+        : [
+            { to: '/app/jugar', label: 'Unirse a una sala', hint: 'Responder con un código', icon: LogIn },
+            { to: '/app/resultados', label: 'Mis resultados', hint: 'Puesto y puntaje', icon: Trophy },
+          ],
+    },
+    { title: 'Mi cuenta', items: [{ to: '/app/perfil', label: 'Mi perfil', hint: 'Nombre visible', icon: User }] },
+  ];
+}
 
 function SidebarContent({ onNavigate, onCollapse }: { onNavigate?: () => void; onCollapse?: () => void }) {
+  const { profile } = useAuth();
+  const sections = navSections(isTeacher(profile));
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-line px-4 py-4">
@@ -50,7 +63,7 @@ function SidebarContent({ onNavigate, onCollapse }: { onNavigate?: () => void; o
         )}
       </div>
       <nav aria-label="Navegación del curso" className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
-        {SECTIONS.map((section, i) => (
+        {sections.map((section, i) => (
           <div key={section.title} className={cn(i > 0 && 'border-t border-line pt-4')}>
             <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted">{section.title}</p>
             <ul className="space-y-1">
@@ -160,32 +173,61 @@ function UserMenu() {
 export function AppShell() {
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const { profile } = useAuth();
   const { theme } = useTheme();
   const location = useLocation();
+  const live = isLiveSessionPath(location.pathname);
 
   useEffect(() => setDrawer(false), [location.pathname]);
 
   return (
     <div className="flex min-h-screen bg-bg">
       {/* Sidebar escritorio */}
-      {!collapsed && (
-        <aside className="sticky top-0 hidden h-screen w-[280px] shrink-0 border-r border-line bg-sidebar lg:block">
+      <aside
+        className={cn(
+          'pl-sidebar sticky top-0 hidden h-screen shrink-0 overflow-hidden bg-sidebar lg:block',
+          collapsed ? 'w-0 border-transparent' : 'w-[280px] border-r border-line',
+        )}
+        aria-hidden={collapsed}
+      >
+        <div className="h-full w-[280px]">
           <SidebarContent onCollapse={() => setCollapsed(true)} />
-        </aside>
-      )}
+        </div>
+      </aside>
 
       {/* Drawer móvil */}
-      {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menú">
-          <button type="button" aria-label="Cerrar menú" className="absolute inset-0 bg-black/60" onClick={() => setDrawer(false)} />
-          <aside className="pl-pop absolute inset-y-0 left-0 w-[86vw] max-w-[300px] border-r border-line bg-sidebar">
+      {!live && (
+        <div
+          className={cn('fixed inset-0 z-40 lg:hidden', !drawer && 'pointer-events-none')}
+          role="dialog"
+          aria-modal={drawer}
+          aria-label="Menú"
+          aria-hidden={!drawer}
+          inert={!drawer}
+        >
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            className={cn('pl-drawer-backdrop absolute inset-0 bg-black/60', drawer ? 'opacity-100' : 'opacity-0')}
+            onClick={() => setDrawer(false)}
+            tabIndex={drawer ? 0 : -1}
+          />
+          <aside
+            className={cn(
+              'pl-drawer-panel absolute inset-y-0 left-0 w-[86vw] max-w-[300px] border-r border-line bg-sidebar',
+              drawer ? 'translate-x-0' : '-translate-x-full',
+            )}
+          >
             <SidebarContent onNavigate={() => setDrawer(false)} onCollapse={() => setDrawer(false)} />
           </aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 bg-header/95 backdrop-blur">
+        {live && (
+          <SoundToggle className="fixed top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] z-50 grid h-11 w-11 place-items-center rounded-full border border-line bg-surface/95 text-fg shadow-lg backdrop-blur lg:hidden" />
+        )}
+        <header className={cn('sticky top-0 z-30 bg-header/95 backdrop-blur', live && 'hidden lg:block')}>
           <div className="flex h-20 items-center gap-2 px-4 sm:px-6">
             <button
               type="button"
@@ -195,7 +237,7 @@ export function AppShell() {
             >
               <Menu className="h-6 w-6" />
             </button>
-            <Brand to="/app/evaluaciones" />
+            <Brand to={isTeacher(profile) ? '/app/evaluaciones' : '/app/jugar'} />
             <div className="ml-auto flex items-center gap-1 sm:gap-3">
               <a
                 href={COURSE.repoUrl}
@@ -207,13 +249,21 @@ export function AppShell() {
               >
                 <img src={theme === 'dark' ? githubDark : githubLight} alt="" className="h-6 w-6" />
               </a>
+              <SoundToggle />
               <ThemeToggle />
               <UserMenu />
             </div>
           </div>
           <div className="pl-header-line h-[3px]" />
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+        <main
+          className={cn(
+            'mx-auto w-full max-w-6xl flex-1',
+            live
+              ? 'px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:px-6 lg:py-8'
+              : 'px-4 py-6 sm:px-6 sm:py-8',
+          )}
+        >
           <Outlet />
         </main>
       </div>

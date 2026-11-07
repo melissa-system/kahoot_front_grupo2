@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ProfeLink · visor REST de sala</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">Cliente REST independiente (P4)</p>
+        <h1>Visor de sala</h1>
+        <p class="lede">
+          Inicia sesión con Supabase y consulta <code>GET /sessions/:code/state</code> sin Socket.IO.
+          Sirve esta carpeta en <code>http://localhost:5174</code> y agrégala a <code>CORS_ORIGIN</code> del API.
+        </p>
+      </header>
+
+      <form id="config-form">
+        <fieldset>
+          <legend>Conexión</legend>
+          <label>API URL <input id="apiUrl" name="apiUrl" placeholder="http://localhost:3000" required /></label>
+          <label>Supabase URL <input id="supabaseUrl" name="supabaseUrl" required /></label>
+          <label>Anon key <input id="anonKey" name="anonKey" required /></label>
+        </fieldset>
+        <fieldset>
+          <legend>Cuenta</legend>
+          <label>Correo <input id="email" name="email" type="email" autocomplete="username" required /></label>
+          <label>Contraseña <input id="password" name="password" type="password" autocomplete="current-password" required /></label>
+        </fieldset>
+        <div class="actions">
+          <button type="submit" id="login-btn">Iniciar sesión y consultar /auth/me</button>
+          <p id="auth-status" class="status" role="status"></p>
+        </div>
+      </form>
+
+      <form id="room-form" hidden>
+        <fieldset>
+          <legend>Sala</legend>
+          <label>Código <input id="code" name="code" maxlength="6" placeholder="ABC234" required /></label>
+        </fieldset>
+        <div class="actions">
+          <button type="submit">Consultar estado</button>
+          <label class="inline"><input id="poll" type="checkbox" checked /> Sondear cada 3 s</label>
+        </div>
+      </form>
+
+      <pre id="me" hidden></pre>
+      <section id="room" hidden></section>
+      <pre id="error" class="error" hidden></pre>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

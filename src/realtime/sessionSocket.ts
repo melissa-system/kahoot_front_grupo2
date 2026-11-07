@@ -115,12 +115,28 @@ export class MockSessionSocket implements SessionSocket {
   emit(event: string, payload: unknown, ack: (response: SessionAck) => void) {
     setTimeout(() => {
       try {
-        const p = (payload ?? {}) as { sessionId?: string; expectedQuestionId?: string };
+        const p = (payload ?? {}) as {
+          sessionId?: string;
+          expectedQuestionId?: string;
+          code?: string;
+          sessionQuestionId?: string;
+          choice?: boolean;
+        };
         const user = this.userId!;
         let data: unknown;
         switch (event) {
           case 'room:subscribe':
             data = mockGame.subscribe(p.sessionId!, user, this.listener);
+            break;
+          case 'room:join':
+            data = mockGame.joinRealtime(p.code ?? '', user, this.listener);
+            break;
+          case 'room:leave':
+            data = mockGame.leave(p.sessionId!, user);
+            mockGame.unsubscribe(this.listener);
+            break;
+          case 'answer:submit':
+            data = mockGame.answer(user, p.sessionQuestionId ?? '', p.choice as boolean);
             break;
           case 'game:start':
             data = mockGame.start(p.sessionId!, user);

@@ -4,9 +4,8 @@ Frontend React + TypeScript del proyecto *Evaluaciones en vivo tipo Kahoot* (Par
 Programación · EIF400 · II Ciclo 2026). Vive dentro del curso de ProfeLink como la sección
 **Evaluaciones en vivo** del menú lateral.
 
-- **Persona 3 (este módulo):** login Supabase, perfil, cuestionarios, preguntas con imagen, sala y
-  panel en vivo del anfitrión.
-- **Persona 4:** pantallas del participante en `/app/jugar` (placeholder listo para implementar).
+- **Persona 3:** login Supabase, perfil, cuestionarios, preguntas con imagen, sala y panel en vivo del anfitrión.
+- **Persona 4:** pantallas del participante en `/app/jugar` (unirse, responder, resultados, reconexión) y visor REST independiente.
 - API: [Back-Proyecto2](https://github.com/Luz-Davila/Back-Proyecto2) (NestJS, REST + Socket.IO).
 
 ## Requisitos
@@ -27,8 +26,10 @@ npm run dev                  # http://localhost:5173
 
 Si faltan las variables de Supabase, o `VITE_USE_MOCKS=true`, la app usa un **backend simulado** que
 respeta los mismos contratos (rutas, validaciones, errores y eventos). Usuario:
-`profe@profelink.test` / `profelink123`. En la sala aparecen 4 jugadores simulados y un botón
-"Simular caída de red" para probar la reconexión. Los datos se guardan en `localStorage`.
+`profe@profelink.test` / `profelink123`. En la sala del anfitrión aparecen 4 jugadores simulados y un
+botón "Simular caída de red". En **Unirse a una sala**, el código `PLAY23` abre una partida demo que
+empieza sola a los ~4 s. El historial incluye partidas de ejemplo con Valeria, Diego, Camila y Andrés.
+Los datos se guardan en `localStorage`.
 
 ## Scripts
 
@@ -46,19 +47,46 @@ respeta los mismos contratos (rutas, validaciones, errores y eventos). Usuario:
 src/
   api/          client.ts (REST tipado), types.ts (contratos), mock/ (backend simulado)
   auth/         AuthProvider + useAuth (sesión, token, api), ProtectedRoute, supabaseAuth
-  realtime/     sessionSocket.ts (Socket.IO /sessions + acks), useHostSession.ts
-  components/ui Button, Card, Field, Modal, ConfirmDialog, Toast, Alert, Badge, EmptyState…
+  realtime/     sessionSocket.ts, useHostSession.ts, useParticipantSession.ts
+  components/   ui/ + live/ (ConnectionBanner, CountdownRing, Ranking)
   layout/       AppShell (sidebar + header ProfeLink), PublicHeader, ThemeToggle
-  pages/        Landing, auth/, live/ (QuizList, QuizEditor, HostSession), Profile, Join (P4)
+  pages/        Landing, auth/, live/ (anfitrión), play/ (JoinPage, PlaySessionPage), Profile
+  clients/      rest-viewer/ (HTML+JS independiente)
 ```
 
-## Para Persona 4 (reutilizar, no duplicar)
+## Persona 4 · participante
 
-- `useAuth()` → `session`, `displayName`, `getToken()`, `api` (cliente REST con JWT).
-- `getSupabase()` en `auth/supabaseAuth.ts`: **único** cliente Supabase.
-- `createSessionSocket(getToken)` + `sendCommand(socket, 'room:join', { code })`.
-- Componentes de `components/ui` y el layout `AppShell` (la ruta `/app/jugar` ya está en el menú).
-- Contratos: `docs/contratos-consumidos.md`.
+Rutas (requieren sesión):
+
+| Ruta | Pantalla |
+|---|---|
+| `/app/evaluaciones/historial` | Historial de kahoots: ganador, puntos, aciertos y errores |
+| `/app/jugar` | Escribir código (se precarga `?code=` del enlace del host) |
+| `/app/jugar/:code` | Lobby → V/F → revisión → clasificación |
+
+Flujo: `POST /sessions/join` → Socket.IO `room:join` (idempotente, cubre reconexión) →
+`answer:submit` con ack → eventos `question:opened` / `question:closed` / `game:finished`.
+
+Modo mock: entra con el usuario demo, código **`PLAY23`**. La sala arranca sola; un humano basta
+para cerrar la pregunta al responder.
+
+### Cliente REST independiente
+
+`clients/rest-viewer/` consulta `GET /auth/me` y `GET /sessions/:code/state` sin React ni sockets.
+
+```bash
+npx serve clients/rest-viewer -l 5174
+```
+
+Agrega `http://localhost:5174` a `CORS_ORIGIN` del API. Detalle en `clients/rest-viewer/README.md`.
+
+### Prueba multi-dispositivo (API real)
+
+1. API y frontend en el mismo Wi-Fi. En el front, `VITE_API_URL=http://<IP-del-host>:3000`.
+2. En el backend, `CORS_ORIGIN=http://localhost:5173,http://<IP-del-host>:5173`.
+3. Navegador A (anfitrión): crea la sala y copia el código.
+4. Navegador B o el teléfono (estudiante): `/app/jugar`, mismo código, responde V/F.
+5. Apaga datos un momento y vuelve: debe reconectar con `room:join` sin duplicar al jugador.
 
 ## Seguridad
 
@@ -68,6 +96,6 @@ src/
 
 ## Documentación
 
-- `openspec/specs/host-frontend/spec.md`: requisitos y escenarios.
+- `openspec/specs/host-frontend/spec.md` y `openspec/specs/participant-frontend/spec.md`.
 - `docs/manual-anfitrion.md`: manual breve del flujo del anfitrión.
-- `docs/contratos-consumidos.md`: REST y eventos usados.
+- `docs/contratos-consumidos.md`: REST y eventos usados (host y participante).

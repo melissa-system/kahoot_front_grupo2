@@ -2,13 +2,14 @@
  * Base de datos simulada para desarrollar sin Supabase ni API. Se guarda en
  * localStorage para sobrevivir recargas. SOLO se usa cuando env.useMocks = true.
  */
-import type { Profile, Question, Quiz } from '../types';
+import type { Profile, Question, Quiz, UserRole } from '../types';
 
 export interface MockUser {
   id: string;
   email: string;
   password: string;
   displayName: string;
+  role: UserRole;
 }
 
 export interface MockData {
@@ -27,11 +28,27 @@ export const uuid = () =>
 
 function seed(): MockData {
   const now = new Date().toISOString();
-  const demo: MockUser = { id: uuid(), email: 'profe@profelink.test', password: 'profelink123', displayName: 'Profe Demo' };
+  const demo: MockUser = {
+    id: uuid(),
+    email: 'profe@profelink.test',
+    password: 'profelink123',
+    displayName: 'Profe Demo',
+    role: 'teacher',
+  };
+  const student: MockUser = {
+    id: uuid(),
+    email: 'alumno@profelink.test',
+    password: 'profelink123',
+    displayName: 'Alex Estudiante',
+    role: 'student',
+  };
   const quizId = uuid();
   return {
-    users: [demo],
-    profiles: [{ userId: demo.id, displayName: demo.displayName, createdAt: now, updatedAt: now }],
+    users: [demo, student],
+    profiles: [
+      { userId: demo.id, displayName: demo.displayName, role: 'teacher', createdAt: now, updatedAt: now },
+      { userId: student.id, displayName: student.displayName, role: 'student', createdAt: now, updatedAt: now },
+    ],
     quizzes: [
       {
         id: quizId,
@@ -64,7 +81,40 @@ export function db(): MockData {
   if (cache) return cache;
   try {
     const stored = localStorage.getItem(KEY);
-    if (stored) cache = JSON.parse(stored) as MockData;
+    if (stored) {
+      cache = JSON.parse(stored) as MockData;
+      cache.profiles = cache.profiles.map((profile) => ({
+        ...profile,
+        role:
+          profile.role === 'student' || profile.role === 'teacher'
+            ? profile.role
+            : cache!.quizzes.some((quiz) => quiz.ownerId === profile.userId)
+              ? 'teacher'
+              : 'student',
+      }));
+      cache.users = cache.users.map((user) => ({
+        ...user,
+        role: user.role === 'student' || user.role === 'teacher' ? user.role : 'teacher',
+      }));
+      if (!cache.users.some((user) => user.role === 'student')) {
+        const student: MockUser = {
+          id: uuid(),
+          email: 'alumno@profelink.test',
+          password: 'profelink123',
+          displayName: 'Alex Estudiante',
+          role: 'student',
+        };
+        cache.users.push(student);
+        cache.profiles.push({
+          userId: student.id,
+          displayName: student.displayName,
+          role: 'student',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        save();
+      }
+    }
   } catch {
     /* almacenamiento no disponible */
   }

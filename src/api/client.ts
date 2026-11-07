@@ -3,12 +3,16 @@ import type {
   CreateQuestionInput,
   CreateQuizInput,
   CreateSessionInput,
+  JoinSessionResult,
+  PlayedSessionItem,
   Profile,
   Question,
   QuestionImageResult,
   Quiz,
   QuizDetail,
   QuizSummary,
+  RoomEnvelope,
+  SessionHistoryItem,
   SessionState,
   UpdateQuestionInput,
   UpdateQuizInput,
@@ -45,8 +49,17 @@ export function createApi(http: HttpClient) {
     },
     sessions: {
       create: (input: CreateSessionInput) => http.post<SessionState>('/sessions', input),
+      /** Partidas finalizadas del anfitrión: ganador, puntos, aciertos y errores. */
+      history: () => http.get<SessionHistoryItem[]>('/sessions/history'),
+      /** Partidas finalizadas en las que el usuario participó. */
+      played: () => http.get<PlayedSessionItem[]>('/sessions/played'),
       get: (id: string) => http.get<SessionState>(`/sessions/${id}`),
-      stateByCode: (code: string) => http.get<SessionState>(`/sessions/${encodeURIComponent(code)}/state`),
+      /** Snapshot con sobre completo (scoreboard, remainingMs). Requiere ser host o participante. */
+      stateByCode: (code: string) => http.get<RoomEnvelope>(`/sessions/${encodeURIComponent(code)}/state`),
+      /** Participante: unirse a una sala en espera (idempotente para el mismo usuario). */
+      join: (code: string) => http.post<JoinSessionResult>('/sessions/join', { code }),
+      /** Participante: abandonar una sala que aún no inició. */
+      leave: (id: string) => http.delete(`/sessions/${id}/participants/me`),
     },
   };
 }

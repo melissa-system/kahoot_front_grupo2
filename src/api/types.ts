@@ -3,9 +3,12 @@
  * src/quizzes, src/profiles y src/sessions/session.contracts.ts del backend.
  */
 
+export type UserRole = 'teacher' | 'student';
+
 export interface Profile {
   userId: string;
   displayName: string;
+  role: UserRole;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,6 +145,106 @@ export const SESSION_EVENTS = [
 export type SessionEvent = (typeof SESSION_EVENTS)[number];
 
 export type HostCommand = 'room:subscribe' | 'game:start' | 'game:advance' | 'game:finish' | 'auth:refresh';
+export type ParticipantCommand = 'room:join' | 'room:subscribe' | 'room:leave' | 'answer:submit' | 'auth:refresh';
+
+/* ---------------- Participante (P4) ---------------- */
+
+/** Alfabeto de los códigos de sala del backend (sin 0/O/1/I para evitar confusiones). */
+export const SESSION_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const SESSION_CODE_LENGTH = 6;
+export const SESSION_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/;
+
+/** Mayúsculas, sin espacios ni símbolos, máximo 6 caracteres. */
+export function normalizeSessionCode(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, SESSION_CODE_LENGTH);
+}
+
+export function isValidSessionCode(code: string): boolean {
+  return SESSION_CODE_PATTERN.test(code);
+}
+
+export interface SubmitAnswerInput {
+  sessionQuestionId: string;
+  choice: boolean;
+}
+
+/** Ack de `answer:submit`: el servidor confirma la respuesta registrada. */
+export interface AnswerReceipt extends SubmitAnswerInput {
+  id: string;
+  answeredAt: string;
+}
+
+/** Respuesta de `POST /sessions/join`. */
+export interface JoinSessionResult {
+  participant: ParticipantView;
+  session: SessionState;
+}
+
+export interface SessionHistoryRankingRow {
+  participantId: string;
+  displayName: string;
+  totalScore: number;
+  rank: number;
+}
+
+export interface SessionHistoryQuestionStat {
+  position: number;
+  statement: string;
+  correctBoolean: boolean;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  correctNames: string[];
+  wrongNames: string[];
+  unansweredNames: string[];
+}
+
+export interface PlayedQuestion {
+  position: number;
+  statement: string;
+  correctBoolean: boolean;
+  myChoice: boolean | null;
+}
+
+/** Partida finalizada de `GET /sessions/played` (el estudiante como participante). */
+export interface PlayedSessionItem {
+  id: string;
+  code: string;
+  quizTitle: string;
+  finishedAt: string;
+  questionsCount: number;
+  participantCount: number;
+  rank: number | null;
+  totalScore: number;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  winnerDisplayName: string | null;
+  questions: PlayedQuestion[];
+}
+
+/** Resumen de `GET /sessions/history` (partidas finalizadas del anfitrión). */
+export interface SessionHistoryItem {
+  id: string;
+  code: string;
+  quizTitle: string;
+  finishedAt: string;
+  participantCount: number;
+  questionsCount: number;
+  winnerDisplayName: string | null;
+  winnerScore: number | null;
+  correctCount: number;
+  wrongCount: number;
+  unansweredCount: number;
+  ranking: SessionHistoryRankingRow[];
+  questions: SessionHistoryQuestionStat[];
+}
+
+/** Ack de `room:join` (une al usuario y suscribe el socket a la sala). */
+export interface RealtimeJoinResult {
+  participant: ParticipantView;
+  room: RoomEnvelope;
+}
 
 export const IMAGE_RULES = {
   maxBytes: 2 * 1024 * 1024,

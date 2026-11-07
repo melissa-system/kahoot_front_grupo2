@@ -30,7 +30,7 @@ describe('Panel del anfitrión', () => {
     expect(start).toBeEnabled();
 
     await userEvent.click(start);
-    expect(await screen.findByText('Pregunta 1 de 3')).toBeInTheDocument();
+    expect(await screen.findByText('1/3')).toBeInTheDocument();
     // Mientras la pregunta está abierta no se revela la respuesta correcta.
     expect(screen.getByText(/la respuesta se revela al cerrar/)).toBeInTheDocument();
     expect(screen.queryByText('Clasificación')).not.toBeInTheDocument();
@@ -52,5 +52,6 @@ describe('Panel del anfitrión', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Finalizar' }));
     expect(await screen.findByText('¡Partida terminada!')).toBeInTheDocument();
     expect(screen.getByText('Clasificación final')).toBeInTheDocument();
+    expect(screen.getByTestId('podium-confetti')).toBeInTheDocument();
   });
 });

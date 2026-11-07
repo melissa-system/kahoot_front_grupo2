@@ -152,6 +152,23 @@ body {
 }
 .pl-pop { animation: pl-pop 220ms ease-out both; }
 
+@keyframes pl-skeleton {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.pl-skeleton {
+  display: block;
+  background-color: var(--pl-surface-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--pl-fg) 9%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: pl-skeleton 1.35s ease-in-out infinite;
+}
+
 /* Entradas y microinteracciones del hero. */
 @keyframes pl-fade-up {
   from { opacity: 0; transform: translateY(18px); }
@@ -210,6 +227,215 @@ body {
 .pl-cta:hover { transform: translateY(-2px); }
 .pl-cta:active { transform: translateY(0); }
 .pl-cta-primary:hover { box-shadow: 0 12px 28px -12px rgb(59 130 246 / 0.7); }
+
+/* Flujo del participante: unirse, lobby, pregunta, resultados. */
+@keyframes pl-stage-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.pl-stage-in {
+  animation: pl-stage-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pl-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.pl-shake { animation: pl-shake 420ms ease-out; }
+@keyframes pl-pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.pl-wait { animation: pl-pulse-soft 1.6s ease-in-out infinite; }
+@keyframes pl-code-glow {
+  0%, 100% { text-shadow: 0 0 0 transparent; }
+  50% { text-shadow: 0 0 22px rgb(59 130 246 / 0.5); }
+}
+.pl-code-live { animation: pl-code-glow 2.4s ease-in-out infinite; }
+.pl-bob { animation: pl-float 4.5s ease-in-out infinite; }
+.pl-join-input {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.pl-join-input:focus { transform: scale(1.015); }
+.pl-choice {
+  transition:
+    transform 160ms ease,
+    box-shadow 180ms ease,
+    opacity 220ms ease,
+    filter 220ms ease;
+}
+.pl-choice:not(:disabled):hover { transform: translateY(-3px) scale(1.03); }
+.pl-choice:not(:disabled):active { transform: scale(0.96); }
+@keyframes pl-choice-flash {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.pl-choice-correct { animation: pl-choice-flash 480ms ease-out; }
+@keyframes pl-podium-up {
+  from { opacity: 0; transform: translateY(28px) scaleY(0.2); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pl-podium-champion {
+  0% { opacity: 0; transform: translateY(48px) scaleY(0.15) scale(0.86); }
+  58% { opacity: 1; transform: translateY(-12px) scaleY(1.08) scale(1.08); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes pl-podium-name-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+.pl-podium {
+  transform-origin: bottom;
+  animation: pl-podium-up 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pl-podium-first {
+  animation: pl-podium-champion 980ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 0 28px rgb(251 191 36 / 0.55);
+}
+.pl-podium-name {
+  animation: pl-podium-name-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.pl-rank-row {
+  animation: pl-fade-up 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--pl-delay, 0ms);
+}
+@keyframes pl-coin-in {
+  from { opacity: 0; transform: scale(0.6) rotate(-12deg); }
+  to { opacity: 1; transform: none; }
+}
+.pl-coin-in { animation: pl-coin-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pl-confetti {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  overflow: hidden;
+}
+.pl-confetti-piece {
+  position: absolute;
+  top: -8%;
+  border-radius: 2px;
+  opacity: 0;
+  animation: pl-confetti-fall 2.6s ease-in both;
+}
+@keyframes pl-confetti-fall {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg); }
+  8% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--pl-dx, 0px), 110vh, 0) rotate(var(--pl-rot, 360deg)); }
+}
+.pl-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--pl-bg) 88%, #020617);
+  animation: pl-dread-in 280ms ease both;
+}
+.pl-dread {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding:
+    max(1.5rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  border: 0;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  color: #f4e8e8;
+  background-color: #050208;
+  background-image: radial-gradient(ellipse at 50% 42%, rgba(127, 29, 29, 0.55), transparent 68%);
+}
+.pl-dread-copy {
+  display: flex;
+  width: min(100%, 22rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+.pl-dread-kicker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  margin-inline-end: -0.42em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0.55;
+  animation: pl-dread-in 700ms ease both;
+}
+.pl-dread-title {
+  max-width: 16ch;
+  font-size: clamp(1.7rem, 8vw, 4.2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.08em;
+  margin-inline-end: -0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 0 28px rgba(220, 38, 38, 0.55);
+  animation:
+    pl-dread-in 1.1s ease both,
+    pl-dread-flicker 2.6s 1s ease-in-out both;
+}
+.pl-dread-hint {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  margin-inline-end: -0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0;
+  animation: pl-dread-hint 400ms 1.6s ease forwards;
+}
+.pl-dread-out { animation: pl-dread-leave 450ms ease forwards; }
+@keyframes pl-dread-in {
+  from { opacity: 0; transform: scale(0.92) translateY(14px); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes pl-dread-flicker {
+  0%, 100% { opacity: 1; }
+  7% { opacity: 0.12; }
+  11% { opacity: 1; }
+  38% { opacity: 0.35; }
+  42% { opacity: 1; }
+  74% { opacity: 0.18; }
+  79% { opacity: 1; }
+}
+@keyframes pl-dread-hint {
+  from { opacity: 0; }
+  to { opacity: 0.55; }
+}
+@keyframes pl-dread-leave {
+  to { opacity: 0; }
+}
+@keyframes pl-urgent {
+  0%, 100% { transform: scale(1); color: inherit; }
+  50% { transform: scale(1.08); }
+}
+.pl-timer-urgent { animation: pl-urgent 0.7s ease-in-out infinite; color: var(--pl-danger); }
 .pl-cta-arrow { transition: transform 180ms ease; }
 .pl-cta:hover .pl-cta-arrow { transform: translateX(4px); }
 .pl-feature-card {
@@ -316,6 +542,23 @@ body {
 }
 .pl-owl-stage { animation: pl-owl-breathe 4.8s ease-in-out infinite; transform-origin: 50% 45%; }
 
+.pl-sidebar {
+  transition:
+    width 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 280ms ease;
+}
+.pl-drawer-backdrop { transition: opacity 280ms ease; }
+.pl-drawer-panel {
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pl-accordion {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pl-accordion-open { grid-template-rows: 1fr; }
+.pl-accordion-inner { overflow: hidden; min-height: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .pl-pop,
   .pl-reveal,
@@ -324,14 +567,43 @@ body {
   .pl-notation-line,
   .pl-corner,
   .pl-eq-bar,
-  .dark .pl-hero-bg { animation: none; }
+  .pl-stage-in,
+  .pl-shake,
+  .pl-wait,
+  .pl-code-live,
+  .pl-bob,
+  .pl-choice-correct,
+  .pl-podium,
+  .pl-podium-first,
+  .pl-podium-name,
+  .pl-rank-row,
+  .pl-coin-in,
+  .pl-confetti-piece,
+  .pl-dread-kicker,
+  .pl-dread-title,
+  .pl-dread-hint,
+  .pl-dread-out,
+  .pl-timer-urgent,
+  .dark .pl-hero-bg,
+  .pl-accordion-open,
+  .pl-skeleton { animation: none; }
+  .pl-confetti { display: none; }
+  .pl-curtain { animation: none; }
   .pl-cta,
   .pl-cta-arrow,
   .pl-feature-card,
-  .pl-feature-card .pl-feature-icon { transition: none; }
+  .pl-feature-card .pl-feature-icon,
+  .pl-choice,
+  .pl-join-input,
+  .pl-sidebar,
+  .pl-drawer-backdrop,
+  .pl-drawer-panel,
+  .pl-accordion { transition: none; }
   .pl-cta:hover,
   .pl-feature-card:hover,
-  .pl-feature-card:hover .pl-feature-icon { transform: none; }
+  .pl-feature-card:hover .pl-feature-icon,
+  .pl-choice:not(:disabled):hover,
+  .pl-join-input:focus { transform: none; }
   /* Búho estático en el fotograma de alas horizontales (f8). */
   .pl-owl-layer-a,
   .pl-owl-stage { animation: none; }

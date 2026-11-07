@@ -9,7 +9,7 @@ import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { FullPageLoader } from '../../components/ui/Spinner';
+import { QuizEditorSkeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { useApi } from '../../auth/useAuth';
 import { ApiError, errorMessage } from '../../lib/http';
@@ -98,7 +98,7 @@ export function QuizEditorPage() {
     }
   }
 
-  if (loading && !quiz) return <FullPageLoader label="Cargando cuestionario…" />;
+  if (loading && !quiz) return <QuizEditorSkeleton />;
   if (error || !quiz) {
     const notFound = error instanceof ApiError && (error.status === 404 || error.status === 403);
     return (

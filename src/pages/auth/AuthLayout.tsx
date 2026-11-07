@@ -21,7 +21,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
             {isMock && (
               <Alert tone="info" className="mt-5">
                 <span className="text-sm">
-                  Modo demo: sin claves de Supabase. Usa <strong>profe@profelink.test</strong> / <strong>profelink123</strong> o crea una cuenta simulada.
+                  Modo demo: profesor <strong>profe@profelink.test</strong>, estudiante <strong>alumno@profelink.test</strong>. Contraseña <strong>profelink123</strong>.
                 </span>
               </Alert>
             )}

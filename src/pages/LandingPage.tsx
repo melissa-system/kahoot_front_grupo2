@@ -1,5 +1,7 @@
 import { ArrowRight, Radio, ShieldCheck, Smartphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
+import { LandingSkeleton } from '../components/ui/Skeleton';
 import { CornerAccents, Crosshair, DotRow, NotationLine, SystemStrip } from '../components/ui/TechFrame';
 import { VitruvianOwl } from '../components/ui/VitruvianOwl';
 import { PublicHeader } from '../layout/PublicHeader';
@@ -11,6 +13,9 @@ const FEATURES = [
 ];
 
 export function LandingPage() {
+  const { status } = useAuth();
+  if (status === 'loading') return <LandingSkeleton />;
+
   return (
     <div className="min-h-screen bg-bg">
       <PublicHeader />
@@ -40,15 +45,18 @@ export function LandingPage() {
               </div>
               <div className="pl-reveal mt-10 flex flex-col gap-3 sm:flex-row" style={{ ['--pl-delay' as string]: '440ms' }}>
                 <Link
-                  to="/registro"
+                  to="/registro?rol=profesor"
                   className="pl-cta pl-cta-primary inline-flex h-14 items-center justify-center gap-3 rounded-xl bg-primary px-6 text-lg font-semibold text-white hover:bg-primary-strong"
                 >
-                  Crear mi cuenta de profesor <ArrowRight className="pl-cta-arrow h-5 w-5" />
+                  Crear cuenta de profesor <ArrowRight className="pl-cta-arrow h-5 w-5" />
                 </Link>
                 <Link
-                  to="/login"
+                  to="/registro?rol=estudiante"
                   className="pl-cta inline-flex h-14 items-center justify-center rounded-xl border border-line bg-surface px-6 text-lg font-semibold hover:bg-surface-2"
                 >
+                  Soy estudiante
+                </Link>
+                <Link to="/login" className="inline-flex h-14 items-center justify-center px-2 text-lg font-semibold text-primary hover:underline sm:px-4">
                   Ya tengo cuenta
                 </Link>
               </div>

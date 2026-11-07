@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
-import { Spinner } from '../../components/ui/Spinner';
+import { QuizListSkeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { useApi } from '../../auth/useAuth';
 import { errorMessage } from '../../lib/http';
@@ -57,7 +57,7 @@ export function QuizListPage() {
         }
       />
 
-      {loading && !quizzes && <Spinner label="Cargando cuestionarios…" />}
+      {loading && !quizzes && <QuizListSkeleton />}
       {error != null && (
         <Alert tone="danger" action={<Button size="sm" variant="secondary" onClick={() => void reload()}>Reintentar</Button>}>
           {errorMessage(error)}

@@ -49,12 +49,13 @@ export function createSupabaseAuth(): AuthAdapter {
       if (error) throw translate(error.message);
       return toSession(data.session)!;
     },
-    async signUp(email, password, displayName) {
+    async signUp(email, password, displayName, role = 'student') {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        // El backend toma el nombre inicial del perfil de user_metadata.display_name.
-        options: { data: { display_name: displayName } },
+        // El backend toma el nombre inicial del perfil de user_metadata.display_name
+        // y el rol de app_role (profesor o estudiante).
+        options: { data: { display_name: displayName, app_role: role } },
       });
       if (error) throw translate(error.message);
       // Si el proyecto exige confirmar correo, no hay sesión todavía.

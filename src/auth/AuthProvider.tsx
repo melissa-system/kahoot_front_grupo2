@@ -19,7 +19,7 @@ export interface AuthContextValue {
   isMock: boolean;
   signIn(email: string, password: string): Promise<void>;
   /** Devuelve false si el proyecto exige confirmar el correo antes de entrar. */
-  signUp(email: string, password: string, displayName: string): Promise<boolean>;
+  signUp(email: string, password: string, displayName: string, role?: 'teacher' | 'student'): Promise<boolean>;
   signOut(): Promise<void>;
   updateDisplayName(name: string): Promise<void>;
   getToken(): Promise<string | null>;
@@ -102,8 +102,8 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
       async signIn(email, password) {
         applySession(await auth.signIn(email, password));
       },
-      async signUp(email, password, displayName) {
-        const created = await auth.signUp(email, password, displayName);
+      async signUp(email, password, displayName, role = 'student') {
+        const created = await auth.signUp(email, password, displayName, role);
         if (!created) return false;
         applySession(created);
         try {

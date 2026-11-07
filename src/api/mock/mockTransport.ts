@@ -1,7 +1,7 @@
 import { ApiError, toApiError, type HttpTransport } from '../../lib/http';
 import { IMAGE_RULES, QUESTION_DURATION, REVIEW_DURATION, type Question } from '../types';
 import { db, delay, save, userFromToken, uuid } from './mockDb';
-import { mockGame } from './mockGame';
+import { MockSessionError, mockGame, statusForSessionError } from './mockGame';
 
 const fail = (status: number, message: string, code?: string): never => {
   throw toApiError(status, { statusCode: status, message, ...(code ? { code } : {}) });
@@ -80,7 +80,7 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
   if (seg[0] === 'profiles' && seg[1] === 'me') {
     let profile = data.profiles.find((p) => p.userId === me.id);
     if (!profile) {
-      profile = { userId: me.id, displayName: me.displayName, createdAt: now, updatedAt: now };
+      profile = { userId: me.id, displayName: me.displayName, role: me.role ?? 'student', createdAt: now, updatedAt: now };
       data.profiles.push(profile);
     }
     if (method === 'PATCH') {
@@ -102,6 +102,8 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
         .sort((a, b2) => b2.updatedAt.localeCompare(a.updatedAt))
         .map((q) => ({ ...q, questionsCount: data.questions.filter((x) => x.quizId === q.id).length }));
     if (method === 'POST') {
+      const profile = data.profiles.find((p) => p.userId === me.id);
+      if ((profile?.role ?? me.role) !== 'teacher') fail(403, 'Solo el profesor puede crear y dirigir cuestionarios');
       const { title, description } = validateQuiz(b, false);
       const quiz = { id: uuid(), ownerId: me.id, title: title!, description: description || null, createdAt: now, updatedAt: now };
       data.quizzes.push(quiz);
@@ -213,7 +215,26 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
       const questions = data.questions.filter((x) => x.quizId === quiz!.id).sort((a, b2) => a.position - b2.position);
       return mockGame.create(me.id, quiz!.title, questions, q, r);
     }
-    if (method === 'GET' && seg[2] === 'state') return mockGame.stateByCode(seg[1]);
+    if (method === 'POST' && seg[1] === 'join') {
+      try {
+        return mockGame.join(String(b.code ?? ''), { id: me.id, displayName: me.displayName });
+      } catch (error) {
+        if (error instanceof MockSessionError) fail(statusForSessionError(error.code), error.message, error.code);
+        throw error;
+      }
+    }
+    if (method === 'DELETE' && seg[2] === 'participants' && seg[3] === 'me') {
+      try {
+        mockGame.leave(seg[1], me.id);
+        return undefined;
+      } catch (error) {
+        if (error instanceof MockSessionError) fail(statusForSessionError(error.code), error.message, error.code);
+        throw error;
+      }
+    }
+    if (method === 'GET' && seg[1] === 'history' && seg.length === 2) return mockGame.history(me.id);
+    if (method === 'GET' && seg[1] === 'played' && seg.length === 2) return mockGame.played(me.id);
+    if (method === 'GET' && seg[2] === 'state') return mockGame.stateByCode(seg[1], me.id);
     if (method === 'GET' && seg.length === 2) return mockGame.state(seg[1], me.id);
   }
 
