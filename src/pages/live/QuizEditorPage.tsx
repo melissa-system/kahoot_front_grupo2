@@ -11,7 +11,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { QuizEditorSkeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
-import { useApi } from '../../auth/useAuth';
+import { useApi, useAuth } from '../../auth/useAuth';
+import { QuizChatbot } from '../../features/quiz-chatbot/QuizChatbot';
 import { ApiError, errorMessage } from '../../lib/http';
 import { useResource } from '../../lib/useResource';
 import { QuestionEditor, type QuestionDraft } from './QuestionEditor';
@@ -21,6 +22,7 @@ import { StartSessionDialog } from './StartSessionDialog';
 export function QuizEditorPage() {
   const { quizId = '' } = useParams();
   const api = useApi();
+  const { profile, session, isMock } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const { data: quiz, setData, error, loading, reload } = useResource(() => api.quizzes.get(quizId), [api, quizId]);
@@ -147,11 +149,13 @@ export function QuizEditorPage() {
       />
 
       <section aria-labelledby="questions-title" className="space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h2 id="questions-title" className="text-2xl font-bold">
             Preguntas
           </h2>
           <span className="rounded-lg bg-surface-2 px-2.5 py-0.5 text-sm font-semibold">{questions.length}</span>
+          {profile?.role === 'teacher' && <QuizChatbot key={`${session?.user.id}:${quizId}`} api={api} quizId={quizId} quizTitle={quiz.title} isMock={isMock}
+            onSaved={async () => { const updated = await api.quizzes.get(quizId); setData((current) => current?.id === updated.id ? updated : current); }} />}
         </div>
 
         {questions.length === 0 && !adding && (

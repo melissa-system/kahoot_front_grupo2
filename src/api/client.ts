@@ -1,4 +1,5 @@
 import type { HttpClient } from '../lib/http';
+import type { QuestionBatchReceipt, QuestionBatchRequest, QuizChatRequest, QuizChatResponse } from './chatbot.types';
 import type {
   CreateQuestionInput,
   CreateQuizInput,
@@ -24,6 +25,9 @@ import type {
  */
 export function createApi(http: HttpClient) {
   return {
+    chatbot: {
+      respond: (quizId: string, input: QuizChatRequest) => http.post<QuizChatResponse>(`/quizzes/${quizId}/chat`, input),
+    },
     profiles: {
       me: () => http.get<Profile>('/profiles/me'),
       update: (displayName: string) => http.patch<Profile>('/profiles/me', { displayName }),
@@ -36,6 +40,7 @@ export function createApi(http: HttpClient) {
       remove: (id: string) => http.delete(`/quizzes/${id}`),
     },
     questions: {
+      createBatch: (quizId: string, input: QuestionBatchRequest) => http.post<QuestionBatchReceipt>(`/quizzes/${quizId}/questions/batch`, input),
       create: (quizId: string, input: CreateQuestionInput) =>
         http.post<Question>(`/quizzes/${quizId}/questions`, input),
       update: (id: string, input: UpdateQuestionInput) => http.patch<Question>(`/questions/${id}`, input),

@@ -33,6 +33,33 @@ Los datos se guardan en `localStorage`.
 
 ## Scripts
 
+### Chat bot del profesor
+
+Dentro de un cuestionario ya creado, pulsa **Chat bot** (icono ProfeLink). Indica tema, nivel opcional,
+cantidad de 1 a 30 o pega tus afirmaciones. Enter envía y Shift+Enter agrega una línea. Revisa la
+propuesta, corrige enunciados/respuestas V/F y desmarca lo que no quieras incluir; solo
+**Agregar al cuestionario** guarda las preguntas seleccionadas al final del listado.
+
+La clave DeepSeek va únicamente en el `.env` del backend, nunca en variables `VITE_*`.
+El modo demo se anuncia como **simulado** y no consulta DeepSeek ni sustituye fallos del modo real.
+El historial/borrador se conserva al cerrar el panel, pero no al recargar o cambiar de cuenta/cuestionario.
+En un resultado de guardado incierto, reintenta el mismo lote sin editarlo para evitar duplicados.
+Si se guardó pero falló la recarga, usa **Actualizar listado**, no otra confirmación.
+
+La feature es modular en `src/features/quiz-chatbot/`. Consume el contrato REST de backend P1/P2:
+`POST /quizzes/:quizId/chat`, `POST /quizzes/:quizId/questions/batch` y `GET /quizzes/:id`.
+El backend debe tener aplicada la migración `AddQuestionBatchOperations` antes de confirmar lotes.
+Revisa siempre la exactitud del contenido propuesto por la IA.
+
+Prueba real opcional de navegador, con servidores levantados y la cuenta `TEST_USER_*` de profesor
+configurada en el backend (requiere un cuestionario existente). Usa DeepSeek y consume saldo,
+pero **no crea cuestionarios ni confirma lotes**; comprueba que el borrador es editable y que
+las preguntas guardadas no cambian. No imprime credenciales ni genera trazas con tokens:
+
+```bash
+npm run test:chatbot:live -- --live
+```
+
 | Comando | Qué hace |
 |---|---|
 | `npm run dev` | Servidor de desarrollo |

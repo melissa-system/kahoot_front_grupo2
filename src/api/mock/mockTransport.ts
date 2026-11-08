@@ -2,6 +2,8 @@ import { ApiError, toApiError, type HttpTransport } from '../../lib/http';
 import { IMAGE_RULES, QUESTION_DURATION, REVIEW_DURATION, type Question } from '../types';
 import { db, delay, save, userFromToken, uuid } from './mockDb';
 import { MockSessionError, mockGame, statusForSessionError } from './mockGame';
+import { mockChat, mockQuestionBatch } from './mockChatbot';
+import type { QuizChatRequest } from '../chatbot.types';
 
 const fail = (status: number, message: string, code?: string): never => {
   throw toApiError(status, { statusCode: status, message, ...(code ? { code } : {}) });
@@ -114,8 +116,17 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
 
   // /quizzes/:id y /quizzes/:id/questions
   if (seg[0] === 'quizzes' && seg.length >= 2) {
+    const isChat = seg.length === 3 && seg[2] === 'chat';
+    const isBatch = seg.length === 4 && seg[2] === 'questions' && seg[3] === 'batch';
+    if (isChat || isBatch) {
+      if (method !== 'POST') fail(404, 'Ruta no encontrada');
+      const profile = data.profiles.find((p) => p.userId === me.id);
+      if ((profile?.role ?? me.role) !== 'teacher') fail(403, 'Solo el profesor puede preparar cuestionarios');
+      const owned = ownQuiz(seg[1]);
+      return isChat ? mockChat(b as unknown as QuizChatRequest) : mockQuestionBatch(me.id, owned.id, b);
+    }
     const quiz = ownQuiz(seg[1]);
-    if (seg[2] === 'questions' && method === 'POST') {
+    if (seg.length === 3 && seg[2] === 'questions' && method === 'POST') {
       const { statement, correctBoolean, position } = validateQuestion(b, false);
       const siblings = data.questions.filter((q) => q.quizId === quiz.id);
       const question: Question = {

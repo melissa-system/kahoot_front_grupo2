@@ -6,7 +6,7 @@ const image = path.resolve(import.meta.dirname, '../src/assets/brand/taku-coin.p
 test('recorrido del anfitrión: registro → quiz → imagen → sala → partida → clasificación', async ({ page }) => {
   const email = `profe${Date.now()}@test.com`;
 
-  await page.goto('/registro');
+  await page.goto('/registro?rol=profesor');
   await page.getByLabel('Nombre visible').fill('Profe E2E');
   await page.getByLabel('Correo').fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill('clave-segura-1');
@@ -17,7 +17,7 @@ test('recorrido del anfitrión: registro → quiz → imagen → sala → partid
   await expect(page.getByText('Aún no tienes cuestionarios')).toBeVisible();
 
   // Crear cuestionario
-  await page.getByRole('button', { name: /Crear cuestionario/ }).click();
+  await page.getByRole('button', { name: 'Nuevo cuestionario' }).click();
   await page.getByLabel('Título').fill('Quiz E2E de Paradigmas');
   await page.getByRole('dialog').getByRole('button', { name: 'Crear cuestionario' }).click();
   await expect(page.getByRole('heading', { name: 'Quiz E2E de Paradigmas' })).toBeVisible();
