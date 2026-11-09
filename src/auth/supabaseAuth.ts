@@ -31,7 +31,18 @@ const AUTH_MESSAGES: Record<string, string> = {
   'Invalid login credentials': 'Correo o contraseña incorrectos.',
   'Email not confirmed': 'Debes confirmar tu correo antes de iniciar sesión.',
   'User already registered': 'Ya existe una cuenta con ese correo.',
+  'For security purposes, you can only request this once every 60 seconds':
+    'Espera un minuto antes de pedir otro enlace.',
+  'Unable to validate email address: invalid format': 'El correo no tiene un formato válido.',
+  'New password should be different from the old password.': 'La nueva contraseña debe ser distinta a la anterior.',
+  'Password should be at least 6 characters.': 'Usa al menos 8 caracteres.',
+  'Auth session missing!': 'El enlace ya no es válido. Solicita uno nuevo.',
+  'Same password': 'La nueva contraseña debe ser distinta a la anterior.',
 };
+
+function recoveryRedirectTo() {
+  return `${window.location.origin}/restablecer`;
+}
 
 function translate(message: string): Error {
   return new Error(AUTH_MESSAGES[message] ?? message);
@@ -64,8 +75,22 @@ export function createSupabaseAuth(): AuthAdapter {
     async signOut() {
       await supabase.auth.signOut();
     },
+    async requestPasswordReset(email) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: recoveryRedirectTo() });
+      if (error) {
+        const message = error.message;
+        if (message.startsWith('For security purposes, you can only request this')) {
+          throw new Error('Espera un momento antes de pedir otro enlace.');
+        }
+        throw translate(message);
+      }
+    },
+    async updatePassword(password) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw translate(error.message);
+    },
     onChange(listener) {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => listener(toSession(session)));
+      const { data } = supabase.auth.onAuthStateChange((event, session) => listener(toSession(session), event));
       return () => data.subscription.unsubscribe();
     },
   };

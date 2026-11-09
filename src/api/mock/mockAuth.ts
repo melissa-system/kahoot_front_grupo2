@@ -1,15 +1,16 @@
-import type { AuthAdapter, AuthSession } from '../../auth/types';
+import type { AuthAdapter, AuthChangeEvent, AuthSession } from '../../auth/types';
 import { db, delay, save, tokenFor, userFromToken, uuid, type MockUser } from './mockDb';
 
 const SESSION_KEY = 'profelink-mock-session';
+const PENDING_RESET_KEY = 'profelink-pending-reset';
 
 function toSession(user: MockUser): AuthSession {
   return { accessToken: tokenFor(user.id), user: { id: user.id, email: user.email, displayName: user.displayName } };
 }
 
 export function createMockAuth(): AuthAdapter {
-  const listeners = new Set<(s: AuthSession | null) => void>();
-  const emit = (s: AuthSession | null) => listeners.forEach((l) => l(s));
+  const listeners = new Set<(s: AuthSession | null, event?: AuthChangeEvent) => void>();
+  const emit = (s: AuthSession | null, event?: AuthChangeEvent) => listeners.forEach((l) => l(s, event));
 
   const persist = (token: string | null) => {
     try {
@@ -57,7 +58,43 @@ export function createMockAuth(): AuthAdapter {
     },
     async signOut() {
       persist(null);
-      emit(null);
+      emit(null, 'SIGNED_OUT');
+    },
+    async requestPasswordReset(email) {
+      await delay();
+      try {
+        sessionStorage.setItem(PENDING_RESET_KEY, email.trim().toLowerCase());
+      } catch {
+        /* ignorar */
+      }
+    },
+    async updatePassword(password) {
+      await delay();
+      let email: string | null = null;
+      try {
+        email = sessionStorage.getItem(PENDING_RESET_KEY);
+      } catch {
+        email = null;
+      }
+      if (!email) throw new Error('El enlace ya no es válido. Solicita uno nuevo.');
+      const user = db().users.find((u) => u.email.toLowerCase() === email);
+      if (!user) throw new Error('El enlace ya no es válido. Solicita uno nuevo.');
+      user.password = password;
+      save();
+      try {
+        sessionStorage.removeItem(PENDING_RESET_KEY);
+      } catch {
+        /* ignorar */
+      }
+      persist(null);
+      emit(null, 'SIGNED_OUT');
+    },
+    hasPendingPasswordReset() {
+      try {
+        return Boolean(sessionStorage.getItem(PENDING_RESET_KEY));
+      } catch {
+        return false;
+      }
     },
     onChange(listener) {
       listeners.add(listener);

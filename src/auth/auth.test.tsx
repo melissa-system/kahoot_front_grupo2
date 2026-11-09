@@ -19,6 +19,7 @@ function renderApp(route: string) {
             <Routes>
               <Route element={<GuestOnlyRoute />}>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/recuperar" element={<p>Recuperar</p>} />
               </Route>
               <Route element={<ProtectedRoute />}>
                 <Route path="/app/evaluaciones" element={<p>Zona privada</p>} />

@@ -10,6 +10,7 @@ HTMLMediaElement.prototype.pause = () => undefined;
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
   mockGame.reset();
   setQuestionBgm(null);
   setSfxMuted(false);

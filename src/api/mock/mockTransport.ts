@@ -1,5 +1,5 @@
 import { ApiError, toApiError, type HttpTransport } from '../../lib/http';
-import { IMAGE_RULES, QUESTION_DURATION, REVIEW_DURATION, type Question } from '../types';
+import { IMAGE_RULES, QUESTION_DURATION, REVIEW_DURATION, type Question, type QuestionKind } from '../types';
 import { db, delay, save, userFromToken, uuid } from './mockDb';
 import { MockSessionError, mockGame, statusForSessionError } from './mockGame';
 import { mockChat, mockQuestionBatch } from './mockChatbot';
@@ -42,9 +42,50 @@ function validateQuestion(body: Record<string, unknown>, partial: boolean) {
   if (!partial || body.statement !== undefined) {
     if (!statement || statement.length > 500) fail(400, 'El enunciado debe tener entre 1 y 500 caracteres');
   }
+  const kind: QuestionKind | undefined = body.kind === 'multiple' || body.kind === 'boolean' ? body.kind : undefined;
+  const effectiveKind = kind ?? (partial ? undefined : 'boolean');
+  if (effectiveKind === 'multiple') {
+    const options = Array.isArray(body.options) ? body.options.map((item) => (typeof item === 'string' ? item.trim() : '')) : [];
+    if (options.length !== 4 || options.some((item) => !item || item.length > 80))
+      fail(400, 'Las preguntas de opción múltiple llevan 4 respuestas de 1 a 80 caracteres');
+    const correctIndexes = [
+      ...new Set(
+        (Array.isArray(body.correctIndexes) ? body.correctIndexes : []).filter(
+          (item): item is number => Number.isInteger(item) && item >= 0 && item <= 3,
+        ),
+      ),
+    ].sort((a, b) => a - b);
+    if (correctIndexes.length === 0) fail(400, 'Marca al menos una opción correcta');
+    return {
+      statement,
+      kind: 'multiple' as const,
+      correctBoolean: false,
+      options,
+      correctIndexes,
+      durationSeconds: parseDuration(body.durationSeconds, partial),
+      position: body.position as number | undefined,
+    };
+  }
   if ((!partial || body.correctBoolean !== undefined) && typeof body.correctBoolean !== 'boolean')
     fail(400, 'correctBoolean must be a boolean value');
-  return { statement, correctBoolean: body.correctBoolean as boolean | undefined, position: body.position as number | undefined };
+  return {
+    statement,
+    kind: effectiveKind,
+    correctBoolean: body.correctBoolean as boolean | undefined,
+    options: kind === 'boolean' ? null : undefined,
+    correctIndexes: kind === 'boolean' ? null : undefined,
+    durationSeconds: parseDuration(body.durationSeconds, partial),
+    position: body.position as number | undefined,
+  };
+}
+
+function parseDuration(value: unknown, partial: boolean): number | null | undefined {
+  if (value === undefined) return partial ? undefined : null;
+  if (value === null) return null;
+  if (!Number.isInteger(value) || (value as number) < QUESTION_DURATION.min || (value as number) > QUESTION_DURATION.max) {
+    fail(400, 'El tiempo de la pregunta debe estar entre 5 y 120 segundos');
+  }
+  return value as number;
 }
 
 function reorder(quizId: string) {
@@ -107,7 +148,16 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
       const profile = data.profiles.find((p) => p.userId === me.id);
       if ((profile?.role ?? me.role) !== 'teacher') fail(403, 'Solo el profesor puede crear y dirigir cuestionarios');
       const { title, description } = validateQuiz(b, false);
-      const quiz = { id: uuid(), ownerId: me.id, title: title!, description: description || null, createdAt: now, updatedAt: now };
+      const quiz = {
+        id: uuid(),
+        ownerId: me.id,
+        title: title!,
+        description: description || null,
+        imageKey: null,
+        imageUrl: null,
+        createdAt: now,
+        updatedAt: now,
+      };
       data.quizzes.push(quiz);
       save();
       return quiz;
@@ -126,16 +176,46 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
       return isChat ? mockChat(b as unknown as QuizChatRequest) : mockQuestionBatch(me.id, owned.id, b);
     }
     const quiz = ownQuiz(seg[1]);
+    if (seg.length === 3 && seg[2] === 'image') {
+      if (method === 'PUT') {
+        const file = body instanceof FormData ? body.get('file') : null;
+        if (!(file instanceof File)) fail(400, 'Debes adjuntar un archivo');
+        const f = file as File;
+        if (f.size === 0) fail(400, 'El archivo está vacío');
+        if (f.size > IMAGE_RULES.maxBytes) fail(413, 'La imagen supera el máximo de 2 MB');
+        if (!(IMAGE_RULES.types as readonly string[]).includes(f.type)) fail(400, 'Formato no permitido. Usa JPG, PNG o WebP');
+        const detected = await detectType(f);
+        if (!detected) fail(400, 'El archivo no es una imagen válida');
+        if (detected !== f.type) fail(400, 'El contenido del archivo no coincide con el formato declarado');
+        quiz.imageKey = `mock/quiz/${quiz.id}`;
+        quiz.imageUrl = await readDataUrl(f);
+        quiz.updatedAt = now;
+        save();
+        return { id: quiz.id, imageKey: quiz.imageKey, imageUrl: quiz.imageUrl };
+      }
+      if (method === 'DELETE') {
+        if (!quiz.imageKey) fail(404, 'El cuestionario no tiene imagen');
+        quiz.imageKey = null;
+        quiz.imageUrl = null;
+        quiz.updatedAt = now;
+        save();
+        return undefined;
+      }
+    }
     if (seg.length === 3 && seg[2] === 'questions' && method === 'POST') {
-      const { statement, correctBoolean, position } = validateQuestion(b, false);
+      const { statement, kind, correctBoolean, options, correctIndexes, durationSeconds, position } = validateQuestion(b, false);
       const siblings = data.questions.filter((q) => q.quizId === quiz.id);
       const question: Question = {
         id: uuid(),
         quizId: quiz.id,
         statement: statement!,
-        correctBoolean: correctBoolean!,
+        kind: kind ?? 'boolean',
+        correctBoolean: correctBoolean ?? false,
+        options: options ?? null,
+        correctIndexes: correctIndexes ?? null,
         imageKey: null,
         imageUrl: null,
+        durationSeconds: durationSeconds ?? null,
         position: position ?? siblings.length,
       };
       siblings.filter((q) => q.position >= question.position).forEach((q) => (q.position += 1));
@@ -193,9 +273,13 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
       }
     }
     if (method === 'PATCH') {
-      const { statement, correctBoolean, position } = validateQuestion(b, true);
+      const { statement, kind, correctBoolean, options, correctIndexes, durationSeconds, position } = validateQuestion(b, true);
       if (statement !== undefined) question.statement = statement;
+      if (kind !== undefined) question.kind = kind;
       if (correctBoolean !== undefined) question.correctBoolean = correctBoolean;
+      if (options !== undefined) question.options = options;
+      if (correctIndexes !== undefined) question.correctIndexes = correctIndexes;
+      if (durationSeconds !== undefined) question.durationSeconds = durationSeconds;
       if (position !== undefined) {
         const siblings = data.questions.filter((q) => q.quizId === question.quizId && q.id !== question.id);
         siblings.sort((a, b2) => a.position - b2.position);

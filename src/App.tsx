@@ -11,7 +11,9 @@ import { LandingPage } from './pages/LandingPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/auth/LoginPage';
+import { RecoverPasswordPage } from './pages/auth/RecoverPasswordPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { HistoryPage } from './pages/live/HistoryPage';
 import { HostSessionPage } from './pages/live/HostSessionPage';
 import { QuizEditorPage } from './pages/live/QuizEditorPage';
@@ -22,9 +24,11 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/restablecer" element={<ResetPasswordPage />} />
       <Route element={<GuestOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/recuperar" element={<RecoverPasswordPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>

@@ -1,4 +1,5 @@
-import { Check, LogOut, Trophy, Users, X } from 'lucide-react';
+import { LogOut, Trophy, Users, X } from 'lucide-react';
+import { ChoiceBoard } from '../../components/live/ChoiceBoard';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { isValidSessionCode, normalizeSessionCode, type RoomEnvelope } from '../../api/types';
@@ -16,9 +17,12 @@ import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { FullPageLoader } from '../../components/ui/Spinner';
+import { answeringWindowSeconds } from '../../lib/sessionTiming';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/useAuth';
+import { MathText } from '../../components/ui/MathText';
 import { cn } from '../../lib/cn';
+import { correctLabel, isCorrectChoice, questionKindOf } from '../../lib/questionKind';
 import { activeQuestionBgm, playSfx, questionBgmKind, useQuestionBgm } from '../../lib/sfx';
 import { useGameSfx } from '../../lib/useGameSfx';
 import { useCountdown } from '../../realtime/useHostSession';
@@ -35,7 +39,7 @@ function PlayerLobby({ room, meId, onLeave, busy }: { room: RoomEnvelope; meId?:
           {state.code}
         </p>
         <p className="text-sm text-muted">
-          {state.questionsCount} preguntas · {state.questionDurationSeconds} s por pregunta
+          {state.questionsCount} preguntas · {state.questionDurationSeconds} s por defecto
         </p>
         <Button variant="secondary" icon={<LogOut className="h-4 w-4" />} loading={busy} onClick={onLeave}>
           Salir de la sala
@@ -78,8 +82,8 @@ function PlayerQuestion({
 }: {
   room: RoomEnvelope;
   deadline: number | null;
-  currentAnswer?: { choice?: boolean; status: string };
-  onChoose(choice: boolean): void;
+  currentAnswer?: { choice?: boolean | number; status: string };
+  onChoose(choice: boolean | number): void;
   submitting: boolean;
 }) {
   const { state } = room;
@@ -88,6 +92,7 @@ function PlayerQuestion({
   const reviewing = q.status === 'CLOSED';
   const sent = currentAnswer?.status === 'sent' || currentAnswer?.status === 'sending';
   const myChoice = currentAnswer?.choice;
+  const ok = isCorrectChoice(q, myChoice);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -100,72 +105,59 @@ function PlayerQuestion({
         </div>
         <CountdownRing
           seconds={seconds}
-          total={reviewing ? Math.max(room.reviewDurationSeconds, seconds) : state.questionDurationSeconds}
+          total={reviewing ? Math.max(room.reviewDurationSeconds, seconds) : answeringWindowSeconds(q, state.questionDurationSeconds)}
           label={reviewing ? 'Tiempo de revisión' : 'Tiempo para responder'}
           tickWhenUrgent={!reviewing}
         />
       </div>
 
       <Card className="p-4 sm:p-10">
-        <h2 className="text-center text-xl font-extrabold leading-tight sm:text-4xl">{q.statement}</h2>
+        <h2 className="text-center text-xl font-extrabold leading-tight sm:text-4xl">
+          <MathText text={q.statement} />
+        </h2>
         {q.imageUrl && <img src={q.imageUrl} alt="Imagen de la pregunta" className="mx-auto mt-4 max-h-[28vh] rounded-2xl border border-line object-contain sm:mt-6 sm:max-h-[40vh]" />}
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-8 sm:gap-4">
-          {[true, false].map((value) => {
-            const correct = reviewing && q.status === 'CLOSED' && q.correctBoolean === value;
-            const mine = myChoice === value;
-            const wrongMine = reviewing && mine && !correct;
-            return (
-              <button
-                key={String(value)}
-                type="button"
-                disabled={reviewing || sent || submitting}
-                onClick={() => {
-                  playSfx('click');
-                  onChoose(value);
-                }}
-                className={cn(
-                  'pl-choice flex min-h-[4.75rem] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center text-sm font-extrabold leading-tight sm:h-28 sm:flex-row sm:gap-3 sm:text-3xl sm:leading-none',
-                  value ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger',
-                  !reviewing && mine && 'pl-pop ring-4 ring-current',
-                  correct && 'pl-choice-correct ring-4 ring-current',
-                  reviewing && !correct && 'opacity-30',
-                  wrongMine && 'opacity-100 ring-4 ring-danger',
-                )}
-              >
-                {value ? <Check className="h-5 w-5 sm:h-8 sm:w-8" /> : <X className="h-5 w-5 sm:h-8 sm:w-8" />}
-                {value ? 'Verdadero' : 'Falso'}
-              </button>
-            );
-          })}
-        </div>
+        <ChoiceBoard
+          question={q}
+          myChoice={myChoice}
+          reviewing={reviewing}
+          disabled={reviewing || sent || submitting}
+          onChoose={(value) => {
+            playSfx('click');
+            onChoose(value);
+          }}
+        />
         <p
           className={cn(
             'mt-4 text-center sm:mt-6',
             reviewing ? 'pl-pop text-2xl font-extrabold sm:text-3xl' : 'text-sm text-muted sm:text-base',
-            reviewing && myChoice !== undefined && myChoice === q.correctBoolean && 'text-success',
-            reviewing && myChoice !== undefined && myChoice !== q.correctBoolean && 'text-danger',
+            reviewing && myChoice !== undefined && ok && 'text-success',
+            reviewing && myChoice !== undefined && !ok && 'text-danger',
           )}
           aria-live="polite"
         >
           {reviewing
             ? myChoice === undefined
               ? 'Se acabó el tiempo'
-              : myChoice === q.correctBoolean
+              : ok
                 ? '¡Correcto!'
                 : '¡Incorrecto!'
             : currentAnswer?.status === 'sending'
               ? 'Enviando…'
               : currentAnswer?.status === 'sent'
                 ? 'Respuesta registrada ✓'
-                : 'Elige verdadero o falso'}
+                : questionKindOf(q) === 'multiple'
+                  ? 'Elige una de las 4 opciones'
+                  : 'Elige verdadero o falso'}
         </p>
         {reviewing && (
           <p className="mt-1 text-center text-sm text-muted">
-            {myChoice === undefined
-              ? `La correcta era ${q.correctBoolean ? 'Verdadero' : 'Falso'}`
-              : myChoice === q.correctBoolean
-                ? 'Sigue así'
-                : `La correcta era ${q.correctBoolean ? 'Verdadero' : 'Falso'}`}
+            {myChoice === undefined || !ok ? (
+              <>
+                La correcta era <MathText text={correctLabel(q)} />
+              </>
+            ) : (
+              'Sigue así'
+            )}
           </p>
         )}
       </Card>
@@ -181,15 +173,14 @@ function PlayerReviewRanking({
 }: {
   room: RoomEnvelope;
   meId?: string;
-  myChoice?: boolean;
+  myChoice?: boolean | number;
   deadline: number | null;
 }) {
   const { state } = room;
   const q = state.currentQuestion!;
   const seconds = useCountdown(deadline);
   const answered = myChoice !== undefined;
-  const correct = q.status === 'CLOSED' ? q.correctBoolean : undefined;
-  const ok = answered && correct !== undefined && myChoice === correct;
+  const ok = answered && isCorrectChoice(q, myChoice);
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -199,7 +190,13 @@ function PlayerReviewRanking({
           </p>
           <p className={cn('font-extrabold', ok ? 'text-success' : 'text-danger')}>{!answered ? 'Se acabó el tiempo' : ok ? '¡Correcto!' : '¡Incorrecto!'}</p>
         </div>
-        <CountdownRing seconds={seconds} total={Math.max(room.reviewDurationSeconds, seconds)} label="Tiempo de revisión" />
+        {seconds > 0 ? (
+          <CountdownRing seconds={seconds} total={Math.max(room.reviewDurationSeconds, seconds)} label="Tiempo de revisión" />
+        ) : (
+          <p className="text-sm font-semibold text-muted" role="status">
+            Esperando la siguiente pregunta…
+          </p>
+        )}
       </div>
       <Card className="p-4 sm:p-6">
         <h3 className="mb-4 flex items-center gap-2 text-xl font-bold">

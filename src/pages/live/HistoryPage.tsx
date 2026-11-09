@@ -6,17 +6,27 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MathText } from '../../components/ui/MathText';
+import { ListFilters } from '../../components/ui/ListFilters';
+import { Modal } from '../../components/ui/Modal';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { HistorySkeleton } from '../../components/ui/Skeleton';
 import { Ranking } from '../../components/live/Ranking';
 import { useApi } from '../../auth/useAuth';
 import { cn } from '../../lib/cn';
+import { correctLabel } from '../../lib/questionKind';
 import { errorMessage } from '../../lib/http';
+import { inDateRange, matchesText } from '../../lib/listFilters';
 import { useResource } from '../../lib/useResource';
 import { CourseBanner } from '../CourseOverviewPage';
 
 const dateFmt = new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium', timeStyle: 'short' });
 export const HISTORY_PAGE_SIZE = 5;
+
+function matchesHistory(item: SessionHistoryItem, query: string, from: string, to: string) {
+  const text = `${item.quizTitle} ${item.code} ${item.winnerDisplayName ?? ''}`;
+  return matchesText(text, query) && inDateRange(item.finishedAt, from, to);
+}
 
 function rankingParticipants(item: SessionHistoryItem) {
   return item.ranking.map((row) => ({
@@ -28,16 +38,28 @@ function rankingParticipants(item: SessionHistoryItem) {
   }));
 }
 
+export const NAME_LIST_PREVIEW = 8;
+
 function NameList({ names, empty }: { names: string[]; empty: string }) {
+  const [expanded, setExpanded] = useState(false);
   if (!names.length) return <p className="text-sm text-muted">{empty}</p>;
+  const extra = names.length - NAME_LIST_PREVIEW;
+  const visible = expanded || extra <= 0 ? names : names.slice(0, NAME_LIST_PREVIEW);
   return (
-    <ul className="flex flex-wrap gap-1.5">
-      {names.map((name, index) => (
-        <li key={`${name}-${index}`} className="rounded-lg bg-surface px-2 py-0.5 text-sm font-semibold">
-          {name}
-        </li>
-      ))}
-    </ul>
+    <div className="min-h-0">
+      <ul className={cn('flex flex-wrap gap-1.5', expanded && extra > 0 && 'max-h-40 overflow-y-auto pr-1')}>
+        {visible.map((name, index) => (
+          <li key={`${name}-${index}`} className="rounded-lg bg-surface px-2 py-0.5 text-sm font-semibold">
+            {name}
+          </li>
+        ))}
+      </ul>
+      {extra > 0 && (
+        <button type="button" className="mt-1.5 text-xs font-semibold text-primary hover:underline" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? 'Ver menos' : `+${extra} más`}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -52,10 +74,12 @@ function QuestionBreakdown({ question, index, total }: { question: SessionHistor
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             Pregunta {index + 1} de {total}
           </p>
-          <p className="font-semibold leading-snug">{question.statement}</p>
+          <p className="font-semibold leading-snug">
+            <MathText text={question.statement} />
+          </p>
           <div className="flex flex-wrap gap-2">
-            <Badge tone={question.correctBoolean ? 'success' : 'danger'}>
-              Correcta: {question.correctBoolean ? 'Verdadero' : 'Falso'}
+            <Badge tone="success">
+              Correcta: <MathText text={correctLabel(question)} />
             </Badge>
             <Badge tone="success" icon={<Check className="h-4 w-4" />}>
               {question.correctCount} {question.correctCount === 1 ? 'acierto' : 'aciertos'}
@@ -106,6 +130,14 @@ function QuestionBreakdown({ question, index, total }: { question: SessionHistor
   );
 }
 
+type HistorySection = 'resumen' | 'preguntas' | 'clasificacion';
+
+const HISTORY_SECTIONS: Array<{ id: HistorySection; label: string }> = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'preguntas', label: 'Aciertos y errores por pregunta' },
+  { id: 'clasificacion', label: 'Clasificación' },
+];
+
 function HistoryCard({
   item,
   open,
@@ -115,7 +147,15 @@ function HistoryCard({
   open: boolean;
   onToggle: () => void;
 }) {
+  const [section, setSection] = useState<HistorySection>('resumen');
   const rows = item.ranking.map(({ participantId, totalScore, rank }) => ({ participantId, totalScore, rank }));
+  const panelId = `historial-${item.id}-panel`;
+
+  function toggle() {
+    if (!open) setSection('resumen');
+    onToggle();
+  }
+
   return (
     <Card className="relative overflow-hidden p-5 sm:p-6">
       <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-warning" />
@@ -132,10 +172,9 @@ function HistoryCard({
             variant="secondary"
             aria-expanded={open}
             aria-controls={`historial-${item.id}`}
-            icon={<ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />}
-            onClick={onToggle}
+            onClick={toggle}
           >
-            {open ? 'Ocultar detalle' : 'Ver detalle'}
+            Ver detalle
           </Button>
         </div>
 
@@ -171,46 +210,91 @@ function HistoryCard({
           </Badge>
         </div>
 
-        {open && (
-          <div id={`historial-${item.id}`} className="pl-stage-in space-y-5 border-t border-line pt-5">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Totales de la partida">
-              <div className="rounded-2xl bg-primary-soft px-4 py-4 text-center">
-                <p className="text-3xl font-extrabold tabular-nums text-primary">{item.questionsCount}</p>
-                <p className="text-sm font-semibold text-primary">Total de preguntas</p>
-              </div>
-              <div className="rounded-2xl bg-success-soft px-4 py-4 text-center">
-                <p className="text-3xl font-extrabold tabular-nums text-success">{item.correctCount}</p>
-                <p className="text-sm font-semibold text-success">Total de aciertos</p>
-              </div>
-              <div className="rounded-2xl bg-danger-soft px-4 py-4 text-center">
-                <p className="text-3xl font-extrabold tabular-nums text-danger">{item.wrongCount}</p>
-                <p className="text-sm font-semibold text-danger">Total de errores</p>
-              </div>
-              <div className="rounded-2xl bg-surface-2 px-4 py-4 text-center">
-                <p className="text-3xl font-extrabold tabular-nums text-muted">{item.unansweredCount}</p>
-                <p className="text-sm font-semibold text-muted">Sin responder</p>
-              </div>
+        <Modal open={open} title={item.quizTitle} size="xl" onClose={onToggle}>
+          <div id={`historial-${item.id}`} className="space-y-4">
+            <p className="-mt-2 text-sm text-muted">
+              {dateFmt.format(new Date(item.finishedAt))} · código {item.code}
+            </p>
+            <div
+              role="tablist"
+              aria-label={`Secciones de ${item.quizTitle}`}
+              className="flex gap-2 overflow-x-auto pb-1"
+            >
+              {HISTORY_SECTIONS.map((tab) => (
+                <Button
+                  key={tab.id}
+                  size="sm"
+                  variant={section === tab.id ? 'primary' : 'secondary'}
+                  role="tab"
+                  aria-selected={section === tab.id}
+                  aria-controls={panelId}
+                  id={`${item.id}-tab-${tab.id}`}
+                  className="shrink-0"
+                  onClick={() => setSection(tab.id)}
+                >
+                  {tab.label}
+                </Button>
+              ))}
             </div>
 
-            {item.questions.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-base font-bold">Aciertos y errores por pregunta</h3>
-                <ol className="space-y-3" aria-label={`Preguntas de ${item.quizTitle}`}>
-                  {item.questions.map((question, index) => (
-                    <QuestionBreakdown key={`${item.id}-${question.position}`} question={question} index={index} total={item.questions.length} />
-                  ))}
-                </ol>
-              </div>
-            )}
+            <div
+              role="tabpanel"
+              id={panelId}
+              aria-labelledby={`${item.id}-tab-${section}`}
+              className="pl-stage-in"
+            >
+              {section === 'resumen' && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold">Resumen</h3>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Totales de la partida">
+                    <div className="rounded-2xl bg-primary-soft px-4 py-4 text-center">
+                      <p className="text-3xl font-extrabold tabular-nums text-primary">{item.questionsCount}</p>
+                      <p className="text-sm font-semibold text-primary">Total de preguntas</p>
+                    </div>
+                    <div className="rounded-2xl bg-success-soft px-4 py-4 text-center">
+                      <p className="text-3xl font-extrabold tabular-nums text-success">{item.correctCount}</p>
+                      <p className="text-sm font-semibold text-success">Total de aciertos</p>
+                    </div>
+                    <div className="rounded-2xl bg-danger-soft px-4 py-4 text-center">
+                      <p className="text-3xl font-extrabold tabular-nums text-danger">{item.wrongCount}</p>
+                      <p className="text-sm font-semibold text-danger">Total de errores</p>
+                    </div>
+                    <div className="rounded-2xl bg-surface-2 px-4 py-4 text-center">
+                      <p className="text-3xl font-extrabold tabular-nums text-muted">{item.unansweredCount}</p>
+                      <p className="text-sm font-semibold text-muted">Sin responder</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            {item.ranking.length > 0 && (
-              <div>
-                <h3 className="mb-3 text-base font-bold">Clasificación</h3>
-                <Ranking rows={rows} participants={rankingParticipants(item)} />
-              </div>
-            )}
+              {section === 'preguntas' && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold">Aciertos y errores por pregunta</h3>
+                  {item.questions.length > 0 ? (
+                    <ol className="space-y-3" aria-label={`Preguntas de ${item.quizTitle}`}>
+                      {item.questions.map((question, index) => (
+                        <QuestionBreakdown key={`${item.id}-${question.position}`} question={question} index={index} total={item.questions.length} />
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-sm text-muted">Esta partida no tiene desglose por pregunta.</p>
+                  )}
+                </div>
+              )}
+
+              {section === 'clasificacion' && (
+                <div>
+                  <h3 className="mb-3 text-base font-bold">Clasificación</h3>
+                  {item.ranking.length > 0 ? (
+                    <Ranking rows={rows} participants={rankingParticipants(item)} />
+                  ) : (
+                    <p className="text-sm text-muted">Nadie participó en esta partida.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </Modal>
       </div>
     </Card>
   );
@@ -220,14 +304,32 @@ export function HistoryPage() {
   const api = useApi();
   const { data, error, loading, reload } = useResource(() => api.sessions.history(), [api]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil((data?.length ?? 0) / HISTORY_PAGE_SIZE));
+  const filtered = useMemo(
+    () => (data ?? []).filter((item) => matchesHistory(item, query, from, to)),
+    [data, query, from, to],
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / HISTORY_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageItems = useMemo(() => {
-    if (!data) return [];
     const start = (currentPage - 1) * HISTORY_PAGE_SIZE;
-    return data.slice(start, start + HISTORY_PAGE_SIZE);
-  }, [data, currentPage]);
+    return filtered.slice(start, start + HISTORY_PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  function applyFilters(values: { query: string; from: string; to: string }) {
+    setQuery(values.query);
+    setFrom(values.from);
+    setTo(values.to);
+    setOpenId(null);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    applyFilters({ query: '', from: '', to: '' });
+  }
 
   function goTo(next: number) {
     setOpenId(null);
@@ -258,37 +360,60 @@ export function HistoryPage() {
 
       {data && data.length > 0 && (
         <div className="space-y-4">
-          <ul key={currentPage} className="space-y-4" aria-label="Partidas finalizadas">
-            {pageItems.map((item, index) => (
-              <li key={item.id} className="pl-reveal" style={{ ['--pl-delay' as string]: `${index * 70}ms` }}>
-                <HistoryCard
-                  item={item}
-                  open={openId === item.id}
-                  onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
-                />
-              </li>
-            ))}
-          </ul>
-          {totalPages > 1 && (
-            <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Paginación del historial">
-              <p className="text-sm text-muted">
-                Página {currentPage} de {totalPages} · {data.length} partidas
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="secondary" icon={<ChevronLeft className="h-4 w-4" />} disabled={currentPage === 1} onClick={() => goTo(currentPage - 1)}>
-                  Anterior
+          <ListFilters
+            query={query}
+            from={from}
+            to={to}
+            searchLabel="Buscar partidas"
+            searchPlaceholder="Buscar por título, código o ganador"
+            onApply={applyFilters}
+            onClear={clearFilters}
+          />
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No hay coincidencias"
+              description="Ninguna partida coincide con la búsqueda o el rango de fechas."
+              action={
+                <Button variant="secondary" onClick={clearFilters}>
+                  Limpiar filtros
                 </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                  <Button key={n} size="sm" variant={n === currentPage ? 'primary' : 'secondary'} aria-current={n === currentPage ? 'page' : undefined} onClick={() => goTo(n)}>
-                    {n}
-                  </Button>
+              }
+            />
+          ) : (
+            <>
+              <ul key={`${currentPage}-${query}-${from}-${to}`} className="space-y-4" aria-label="Partidas finalizadas">
+                {pageItems.map((item, index) => (
+                  <li key={item.id} className="pl-reveal" style={{ ['--pl-delay' as string]: `${index * 70}ms` }}>
+                    <HistoryCard
+                      item={item}
+                      open={openId === item.id}
+                      onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
+                    />
+                  </li>
                 ))}
-                <Button size="sm" variant="secondary" disabled={currentPage === totalPages} onClick={() => goTo(currentPage + 1)}>
-                  Siguiente
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </nav>
+              </ul>
+              {totalPages > 1 && (
+                <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Paginación del historial">
+                  <p className="text-sm text-muted">
+                    Página {currentPage} de {totalPages} · {filtered.length} {filtered.length === 1 ? 'partida' : 'partidas'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="secondary" icon={<ChevronLeft className="h-4 w-4" />} disabled={currentPage === 1} onClick={() => goTo(currentPage - 1)}>
+                      Anterior
+                    </Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                      <Button key={n} size="sm" variant={n === currentPage ? 'primary' : 'secondary'} aria-current={n === currentPage ? 'page' : undefined} onClick={() => goTo(n)}>
+                        {n}
+                      </Button>
+                    ))}
+                    <Button size="sm" variant="secondary" disabled={currentPage === totalPages} onClick={() => goTo(currentPage + 1)}>
+                      Siguiente
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </nav>
+              )}
+            </>
           )}
         </div>
       )}

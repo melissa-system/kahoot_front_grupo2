@@ -22,8 +22,8 @@ export function QuizChatDialog({ open, onClose, quizTitle, isMock, reviewExpande
   }, [open]);
 
   return (
-    <dialog ref={ref} aria-labelledby={title} onCancel={(event) => { event.preventDefault(); onClose(); }}
-      className={`m-0 ml-auto h-dvh max-h-none w-full max-w-none flex-col border-l border-line bg-surface p-0 text-fg backdrop:bg-black/50 open:flex ${fullscreen ? '' : reviewExpanded ? 'sm:w-[min(94vw,72rem)]' : 'sm:w-[28rem]'}`}>
+    <dialog ref={ref} aria-labelledby={title} closedby="closerequest" onCancel={(event) => { event.preventDefault(); onClose(); }}
+      className={`m-0 ml-auto h-dvh max-h-none w-full max-w-none flex-col border-l border-line bg-surface p-0 text-fg backdrop:bg-black/70 backdrop:backdrop-blur-sm open:flex ${fullscreen ? '' : reviewExpanded ? 'sm:w-[min(94vw,72rem)]' : 'sm:w-[28rem]'}`}>
       <header className="flex shrink-0 items-center gap-3 border-b border-line p-4">
         <img src={icon} alt="" className="h-12 w-12 shrink-0 object-contain" />
         <div className="min-w-0 flex-1">

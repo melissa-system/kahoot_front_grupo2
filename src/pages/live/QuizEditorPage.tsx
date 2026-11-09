@@ -1,12 +1,13 @@
-import { ArrowDown, ArrowLeft, ArrowUp, Check, ImageIcon, Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { ArrowLeft, Pencil, Play, Plus, Timer } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Question, QuizDetail } from '../../api/types';
 import { Alert } from '../../components/ui/Alert';
-import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { QuizEditorSkeleton } from '../../components/ui/Skeleton';
@@ -14,10 +15,13 @@ import { useToast } from '../../components/ui/Toast';
 import { useApi, useAuth } from '../../auth/useAuth';
 import { QuizChatbot } from '../../features/quiz-chatbot/QuizChatbot';
 import { ApiError, errorMessage } from '../../lib/http';
+import { loadQuizTiming } from '../../lib/quizTiming';
+import { reorderQuestions } from '../../lib/reorderQuestions';
 import { useResource } from '../../lib/useResource';
 import { QuestionEditor, type QuestionDraft } from './QuestionEditor';
 import { QuizFormDialog } from './QuizFormDialog';
-import { StartSessionDialog } from './StartSessionDialog';
+import { SortableQuestionCard } from './SortableQuestionCard';
+import { TimeLimitDialog } from './TimeLimitDialog';
 
 export function QuizEditorPage() {
   const { quizId = '' } = useParams();
@@ -31,8 +35,13 @@ export function QuizEditorPage() {
   const [adding, setAdding] = useState(false);
   const [toDelete, setToDelete] = useState<Question | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [moving, setMoving] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [timingOpen, setTimingOpen] = useState(false);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const replaceQuestions = (fn: (qs: Question[]) => Question[]) =>
     setData((q) => (q ? { ...q, questions: fn(q.questions).sort((a, b) => a.position - b.position) } : q));
@@ -56,7 +65,14 @@ export function QuizEditorPage() {
   }
 
   async function addQuestion(draft: QuestionDraft) {
-    const created = await api.questions.create(quizId, { statement: draft.statement, correctBoolean: draft.correctBoolean });
+    const created = await api.questions.create(quizId, {
+      statement: draft.statement,
+      kind: draft.kind,
+      correctBoolean: draft.correctBoolean,
+      options: draft.options,
+      correctIndexes: draft.correctIndexes,
+      durationSeconds: draft.durationSeconds,
+    });
     const withImage = await syncImage(created, draft);
     replaceQuestions((qs) => [...qs, withImage]);
     toast.success('Pregunta agregada');
@@ -64,24 +80,47 @@ export function QuizEditorPage() {
 
   async function updateQuestion(original: Question, draft: QuestionDraft) {
     let updated = original;
-    if (draft.statement !== original.statement || draft.correctBoolean !== original.correctBoolean)
-      updated = { ...original, ...(await api.questions.update(original.id, { statement: draft.statement, correctBoolean: draft.correctBoolean })) };
+    if (
+      draft.statement !== original.statement ||
+      draft.kind !== original.kind ||
+      draft.correctBoolean !== original.correctBoolean ||
+      JSON.stringify(draft.correctIndexes ?? null) !== JSON.stringify(original.correctIndexes) ||
+      JSON.stringify(draft.options ?? null) !== JSON.stringify(original.options) ||
+      draft.durationSeconds !== original.durationSeconds
+    )
+      updated = {
+        ...original,
+        ...(await api.questions.update(original.id, {
+          statement: draft.statement,
+          kind: draft.kind,
+          correctBoolean: draft.correctBoolean,
+          options: draft.options,
+          correctIndexes: draft.correctIndexes,
+          durationSeconds: draft.durationSeconds,
+        })),
+      };
     updated = await syncImage(updated, draft);
     replaceQuestions((qs) => qs.map((q) => (q.id === updated.id ? { ...q, ...updated, imageUrl: updated.imageUrl } : q)));
     setEditingId(null);
     toast.success('Pregunta actualizada');
   }
 
-  async function move(question: Question, delta: -1 | 1) {
-    setMoving(question.id);
+  async function onDragEnd(event: DragEndEvent) {
+    const overId = event.over?.id;
+    if (!quiz || !overId || event.active.id === overId) return;
+    const previous = quiz.questions;
+    const next = reorderQuestions(previous, String(event.active.id), String(overId));
+    const moved = next.find((question) => question.id === event.active.id);
+    if (!moved) return;
+    setData((current) => (current ? { ...current, questions: next } : current));
+    setMoving(true);
     try {
-      await api.questions.update(question.id, { position: question.position + delta });
-      // El backend reordena las demás; recargamos para reflejar el orden real.
-      setData(await api.quizzes.get(quizId));
+      await api.questions.update(moved.id, { position: moved.position });
     } catch (err) {
+      setData((current) => (current ? { ...current, questions: previous } : current));
       toast.error(errorMessage(err));
     } finally {
-      setMoving(null);
+      setMoving(false);
     }
   }
 
@@ -97,6 +136,18 @@ export function QuizEditorPage() {
       toast.error(errorMessage(err));
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function playQuiz() {
+    if (!quiz || quiz.questions.length === 0) return;
+    setStarting(true);
+    try {
+      const session = await api.sessions.create({ quizId: quiz.id, ...loadQuizTiming(quiz.id) });
+      navigate(`/app/evaluaciones/sala/${session.id}`);
+    } catch (err) {
+      toast.error(errorMessage(err));
+      setStarting(false);
     }
   }
 
@@ -121,12 +172,22 @@ export function QuizEditorPage() {
   }
 
   const questions = quiz.questions;
+  const defaultSeconds = loadQuizTiming(quiz.id).questionDurationSeconds;
+  const editingQuestion = questions.find((q) => q.id === editingId) ?? null;
+  const editingIndex = editingQuestion ? questions.findIndex((q) => q.id === editingQuestion.id) : -1;
 
   return (
     <div>
       <Link to="/app/evaluaciones" className="mb-4 inline-flex items-center gap-2 text-muted hover:text-fg">
         <ArrowLeft className="h-4 w-4" /> Mis cuestionarios
       </Link>
+      {quiz.imageUrl && (
+        <img
+          src={quiz.imageUrl}
+          alt=""
+          className="mb-4 h-36 w-full max-w-xl rounded-2xl border border-line object-cover"
+        />
+      )}
       <PageHeader
         title={quiz.title}
         description={quiz.description || 'Sin descripción'}
@@ -135,12 +196,16 @@ export function QuizEditorPage() {
             <Button variant="secondary" icon={<Pencil className="h-4 w-4" />} onClick={() => setEditingMeta(true)}>
               Editar datos
             </Button>
+            <Button variant="secondary" icon={<Timer className="h-4 w-4" />} onClick={() => setTimingOpen(true)}>
+              Tiempo límite
+            </Button>
             <Button
               variant="success"
               icon={<Play className="h-4 w-4" />}
-              disabled={questions.length === 0}
+              disabled={questions.length === 0 || starting}
+              loading={starting}
               title={questions.length === 0 ? 'Agrega al menos una pregunta' : undefined}
-              onClick={() => setStarting(true)}
+              onClick={() => void playQuiz()}
             >
               Jugar
             </Button>
@@ -161,7 +226,7 @@ export function QuizEditorPage() {
         {questions.length === 0 && !adding && (
           <EmptyState
             title="Este cuestionario no tiene preguntas"
-            description="Agrega afirmaciones de verdadero o falso. Puedes incluir una imagen en cada una."
+            description="Agrega verdadero/falso o preguntas de 4 opciones, como en Kahoot. Puedes incluir una imagen en cada una."
             action={
               <Button icon={<Plus className="h-5 w-5" />} onClick={() => setAdding(true)}>
                 Agregar pregunta
@@ -170,70 +235,31 @@ export function QuizEditorPage() {
           />
         )}
 
-        <ol className="space-y-3">
-          {questions.map((q, i) => (
-            <li key={q.id}>
-              <Card className="relative overflow-hidden">
-                <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-primary" />
-                {editingId === q.id ? (
-                  <div className="p-5">
-                    <p className="mb-3 text-sm font-semibold text-muted">Editando pregunta {i + 1}</p>
-                    <QuestionEditor initial={q} submitLabel="Guardar cambios" onSubmit={(d) => updateQuestion(q, d)} onCancel={() => setEditingId(null)} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-warning font-bold text-warning">{i + 1}</span>
-                    {q.imageUrl ? (
-                      <img src={q.imageUrl} alt="" className="h-20 w-28 shrink-0 rounded-lg border border-line object-cover" />
-                    ) : (
-                      <span className="hidden h-20 w-28 shrink-0 place-items-center rounded-lg border border-dashed border-line text-muted sm:grid" aria-hidden>
-                        <ImageIcon className="h-6 w-6" />
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <p className="text-lg font-semibold">{q.statement}</p>
-                      <Badge tone={q.correctBoolean ? 'success' : 'danger'} icon={q.correctBoolean ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}>
-                        {q.correctBoolean ? 'Verdadero' : 'Falso'}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" aria-label={`Subir pregunta ${i + 1}`} disabled={i === 0 || moving !== null} onClick={() => void move(q, -1)}>
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Bajar pregunta ${i + 1}`}
-                        disabled={i === questions.length - 1 || moving !== null}
-                        onClick={() => void move(q, 1)}
-                      >
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" aria-label={`Editar pregunta ${i + 1}`} onClick={() => setEditingId(q.id)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" aria-label={`Eliminar pregunta ${i + 1}`} onClick={() => setToDelete(q)}>
-                        <Trash2 className="h-4 w-4 text-danger" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            </li>
-          ))}
-        </ol>
+        {questions.length > 0 && (
+          <p className="text-sm text-muted">Arrastra el asa de cada pregunta para cambiar el orden. También puedes usar el teclado: enfoca el asa, espacio y flechas.</p>
+        )}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void onDragEnd(event)}>
+          <SortableContext items={questions.map((question) => question.id)} strategy={verticalListSortingStrategy}>
+            <ol className="space-y-3">
+              {questions.map((q, i) => (
+                <SortableQuestionCard
+                  key={q.id}
+                  question={q}
+                  index={i}
+                  defaultSeconds={defaultSeconds}
+                  disabled={moving}
+                  onEdit={() => setEditingId(q.id)}
+                  onDelete={() => setToDelete(q)}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
 
-        {adding ? (
-          <Card className="p-5">
-            <h3 className="mb-4 text-lg font-bold">Nueva pregunta</h3>
-            <QuestionEditor submitLabel="Agregar pregunta" onSubmit={addQuestion} onCancel={() => setAdding(false)} />
-          </Card>
-        ) : (
-          questions.length > 0 && (
-            <Button variant="secondary" size="lg" className="w-full border-dashed" icon={<Plus className="h-5 w-5" />} onClick={() => setAdding(true)}>
-              Agregar pregunta
-            </Button>
-          )
+        {questions.length > 0 && (
+          <Button variant="secondary" size="lg" className="w-full border-dashed" icon={<Plus className="h-5 w-5" />} onClick={() => setAdding(true)}>
+            Agregar pregunta
+          </Button>
         )}
 
         <Alert tone="info">
@@ -243,13 +269,56 @@ export function QuizEditorPage() {
         </Alert>
       </section>
 
+      <Modal open={adding} title="Nueva pregunta" size="2xl" onClose={() => setAdding(false)}>
+        {adding && (
+          <QuestionEditor
+            submitLabel="Agregar pregunta"
+            onSubmit={async (draft) => {
+              await addQuestion(draft);
+              setAdding(false);
+            }}
+            onCancel={() => setAdding(false)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        open={!!editingQuestion}
+        title={editingIndex >= 0 ? `Editar pregunta ${editingIndex + 1}` : 'Editar pregunta'}
+        size="2xl"
+        onClose={() => setEditingId(null)}
+      >
+        {editingQuestion && (
+          <QuestionEditor
+            initial={editingQuestion}
+            submitLabel="Guardar cambios"
+            onSubmit={(draft) => updateQuestion(editingQuestion, draft)}
+            onCancel={() => setEditingId(null)}
+          />
+        )}
+      </Modal>
+
       <QuizFormDialog
         open={editingMeta}
         quiz={quiz}
         onClose={() => setEditingMeta(false)}
         onSubmit={async (values) => {
-          const updated = await api.quizzes.update(quiz.id, { title: values.title, description: values.description });
-          setData((q) => (q ? ({ ...q, ...updated } as QuizDetail) : q));
+          let updated: QuizDetail = {
+            ...quiz,
+            ...(await api.quizzes.update(quiz.id, { title: values.title, description: values.description })),
+          };
+          if (values.image instanceof File) {
+            try {
+              const result = await api.quizzes.uploadImage(quiz.id, values.image);
+              updated = { ...updated, imageKey: result.imageKey, imageUrl: result.imageUrl };
+            } catch (err) {
+              toast.error(`Los datos se guardaron, pero la imagen no: ${errorMessage(err)}`);
+            }
+          } else if (values.image === null && quiz.imageKey) {
+            await api.quizzes.removeImage(quiz.id);
+            updated = { ...updated, imageKey: null, imageUrl: null };
+          }
+          setData((q) => (q ? { ...q, ...updated, questions: q.questions } : q));
           setEditingMeta(false);
           toast.success('Datos actualizados');
         }}
@@ -265,16 +334,14 @@ export function QuizEditorPage() {
         onCancel={() => setToDelete(null)}
       />
 
-      {starting && (
-        <StartSessionDialog
+      {timingOpen && (
+        <TimeLimitDialog
           open
+          quizId={quiz.id}
           quizTitle={quiz.title}
           questionsCount={questions.length}
-          onClose={() => setStarting(false)}
-          onStart={async (values) => {
-            const session = await api.sessions.create({ quizId: quiz.id, ...values });
-            navigate(`/app/evaluaciones/sala/${session.id}`);
-          }}
+          onClose={() => setTimingOpen(false)}
+          onSaved={() => toast.success('Tiempo límite guardado')}
         />
       )}
     </div>

@@ -21,6 +21,11 @@ export interface AuthContextValue {
   /** Devuelve false si el proyecto exige confirmar el correo antes de entrar. */
   signUp(email: string, password: string, displayName: string, role?: 'teacher' | 'student'): Promise<boolean>;
   signOut(): Promise<void>;
+  requestPasswordReset(email: string): Promise<void>;
+  updatePassword(password: string): Promise<void>;
+  /** Sesión de recuperación (enlace del correo) o restablecimiento pendiente en demo. */
+  canResetPassword: boolean;
+  passwordRecovery: boolean;
   updateDisplayName(name: string): Promise<void>;
   getToken(): Promise<string | null>;
   api: Api;
@@ -33,6 +38,8 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [resetPending, setResetPending] = useState(() => auth.hasPendingPasswordReset?.() ?? false);
   const sessionRef = useRef<AuthSession | null>(null);
 
   const getToken = useCallback(async () => {
@@ -68,7 +75,14 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
       .getSession()
       .then((s) => alive && applySession(s))
       .catch(() => alive && applySession(null));
-    const unsubscribe = auth.onChange((s) => applySession(s));
+    const unsubscribe = auth.onChange((s, event) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false);
+        setResetPending(auth.hasPendingPasswordReset?.() ?? false);
+      }
+      applySession(s);
+    });
     return () => {
       alive = false;
       unsubscribe();
@@ -116,12 +130,26 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
       async signOut() {
         await auth.signOut();
         applySession(null);
+        setPasswordRecovery(false);
       },
+      async requestPasswordReset(email) {
+        await auth.requestPasswordReset(email);
+        setResetPending(auth.hasPendingPasswordReset?.() ?? false);
+      },
+      async updatePassword(password) {
+        await auth.updatePassword(password);
+        await auth.signOut();
+        applySession(null);
+        setPasswordRecovery(false);
+        setResetPending(false);
+      },
+      canResetPassword: passwordRecovery || resetPending,
+      passwordRecovery,
       async updateDisplayName(name) {
         setProfile(await api.profiles.update(name));
       },
     }),
-    [status, session, profile, api, getToken, auth, applySession],
+    [status, session, profile, api, getToken, auth, applySession, passwordRecovery, resetPending],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

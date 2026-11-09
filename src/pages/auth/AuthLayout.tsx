@@ -2,7 +2,9 @@ import type { ReactNode } from 'react';
 import logo from '../../assets/brand/profelink-logo.png';
 import { Alert } from '../../components/ui/Alert';
 import { useAuth } from '../../auth/useAuth';
+import { BrandMark } from '../../layout/Brand';
 import { PublicHeader } from '../../layout/PublicHeader';
+import { ThemeToggle } from '../../layout/ThemeToggle';
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   const { isMock } = useAuth();
@@ -29,6 +31,28 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+/** Pantalla centrada para recuperar o restablecer contraseña. */
+export function AuthFocusLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  return (
+    <div className="relative flex min-h-screen flex-col bg-bg">
+      <div className="absolute right-3 top-3 sm:right-4 sm:top-4">
+        <ThemeToggle />
+      </div>
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-md text-center">
+          <BrandMark className="mx-auto h-16 w-16 rounded-2xl" />
+          <p className="mt-4 text-2xl font-extrabold tracking-tight">ProfeLink</p>
+          <p className="mt-1 text-sm text-muted">Tu lugar seguro para aprender</p>
+          <h1 className="mt-7 text-3xl font-extrabold tracking-tight">{title}</h1>
+          <p className="mt-2 text-muted">{subtitle}</p>
+          <div className="mt-7 text-left">{children}</div>
+        </div>
+      </main>
+      <footer className="py-5 text-center text-sm text-muted">© {new Date().getFullYear()} ProfeLink. Transformando la educación.</footer>
     </div>
   );
 }

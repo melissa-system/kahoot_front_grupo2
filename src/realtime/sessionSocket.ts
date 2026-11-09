@@ -121,6 +121,7 @@ export class MockSessionSocket implements SessionSocket {
           code?: string;
           sessionQuestionId?: string;
           choice?: boolean;
+          choiceIndex?: number;
         };
         const user = this.userId!;
         let data: unknown;
@@ -136,7 +137,7 @@ export class MockSessionSocket implements SessionSocket {
             mockGame.unsubscribe(this.listener);
             break;
           case 'answer:submit':
-            data = mockGame.answer(user, p.sessionQuestionId ?? '', p.choice as boolean);
+            data = mockGame.answer(user, p.sessionQuestionId ?? '', (p.choiceIndex ?? p.choice) as boolean | number);
             break;
           case 'game:start':
             data = mockGame.start(p.sessionId!, user);
@@ -171,10 +172,12 @@ export class MockSessionSocket implements SessionSocket {
  */
 export function createSessionSocket(getToken: () => Promise<string | null>): SessionSocket {
   if (env.useMocks) return new MockSessionSocket(getToken);
+  const sameOrigin = !env.apiUrl;
   return io(`${env.apiUrl}/sessions`, {
     path: '/socket.io',
     autoConnect: false,
-    transports: ['websocket', 'polling'],
+    transports: sameOrigin ? ['polling'] : ['websocket', 'polling'],
+    upgrade: !sameOrigin,
     reconnection: true,
     reconnectionDelay: 800,
     reconnectionDelayMax: 5000,

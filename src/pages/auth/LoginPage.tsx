@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/Field';
@@ -10,6 +10,8 @@ import { AuthLayout } from './AuthLayout';
 
 export function LoginPage() {
   const { signIn } = useAuth();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string | null; password?: string | null }>({});
@@ -36,6 +38,7 @@ export function LoginPage() {
   return (
     <AuthLayout title="Iniciar sesión" subtitle="Entra para unirte a una sala o dirigir tus evaluaciones.">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
+        {notice && <Alert tone="success">{notice}</Alert>}
         {formError && <Alert tone="danger">{formError}</Alert>}
         <TextField label="Correo" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
         <TextField
@@ -46,6 +49,11 @@ export function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           error={errors.password}
         />
+        <p className="text-right">
+          <Link to="/recuperar" className="text-sm font-semibold text-primary hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </p>
         <Button type="submit" size="lg" className="w-full" loading={loading}>
           Entrar
         </Button>

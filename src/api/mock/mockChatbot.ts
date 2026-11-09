@@ -56,7 +56,18 @@ export function mockQuestionBatch(userId: string, quizId: string, body: unknown)
   if (prior) { if (prior.payload !== payload) return fail(409, 'Este identificador corresponde a otro lote.'); return prior.receipt; }
   const data = db();
   const offset = data.questions.filter((q) => q.quizId === quizId).length;
-  const created: Question[] = questions.map((q, index) => ({ ...q, id: uuid(), quizId, position: offset + index, imageKey: null, imageUrl: null }));
+  const created: Question[] = questions.map((q, index) => ({
+    ...q,
+    id: uuid(),
+    quizId,
+    kind: 'boolean',
+    options: null,
+    correctIndexes: null,
+    position: offset + index,
+    imageKey: null,
+    imageUrl: null,
+    durationSeconds: null,
+  }));
   const receipt = { operationId: input.operationId, questions: created };
   data.questions.push(...created);
   const quiz = data.quizzes.find((q) => q.id === quizId)!;

@@ -55,6 +55,8 @@ function seed(): MockData {
         ownerId: demo.id,
         title: 'Paradigmas: repaso rápido',
         description: 'Conceptos básicos de programación funcional y lógica',
+        imageKey: null,
+        imageUrl: null,
         createdAt: now,
         updatedAt: now,
       },
@@ -67,9 +69,13 @@ function seed(): MockData {
       id: uuid(),
       quizId,
       statement: statement as string,
+      kind: 'boolean' as const,
       correctBoolean: correct as boolean,
+      options: null,
+      correctIndexes: null,
       imageKey: null,
       imageUrl: null,
+      durationSeconds: null,
       position,
     })),
   };
@@ -91,6 +97,22 @@ export function db(): MockData {
             : cache!.quizzes.some((quiz) => quiz.ownerId === profile.userId)
               ? 'teacher'
               : 'student',
+      }));
+      cache.quizzes = cache.quizzes.map((quiz) => ({
+        ...quiz,
+        imageKey: quiz.imageKey ?? null,
+        imageUrl: quiz.imageUrl ?? null,
+      }));
+      cache.questions = cache.questions.map((question) => ({
+        ...question,
+        kind: question.kind === 'multiple' ? 'multiple' : 'boolean',
+        options: question.options ?? null,
+        durationSeconds: Number.isInteger(question.durationSeconds) ? question.durationSeconds : null,
+        correctIndexes: Array.isArray(question.correctIndexes)
+          ? question.correctIndexes
+          : Number.isInteger((question as Question & { correctIndex?: number }).correctIndex)
+            ? [(question as Question & { correctIndex: number }).correctIndex]
+            : null,
       }));
       cache.users = cache.users.map((user) => ({
         ...user,

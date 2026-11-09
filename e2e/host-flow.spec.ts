@@ -39,9 +39,10 @@ test('recorrido del anfitrión: registro → quiz → imagen → sala → partid
   await expect(page.getByRole('listitem').filter({ hasText: 'Erlang usa el modelo de actores' })).toBeVisible();
 
   // Abrir sala
-  await page.getByRole('button', { name: 'Jugar' }).click();
+  await page.getByRole('button', { name: 'Tiempo límite' }).click();
   await page.getByRole('button', { name: '10 s' }).click();
-  await page.getByRole('button', { name: 'Crear sala' }).click();
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByRole('button', { name: 'Jugar' }).click();
   await expect(page.getByText(/Sala en vivo · [A-Z0-9]{6}/)).toBeVisible();
 
   // Llegan participantes simulados por eventos

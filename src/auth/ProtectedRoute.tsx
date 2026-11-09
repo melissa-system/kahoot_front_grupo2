@@ -5,17 +5,19 @@ import { useAuth } from './useAuth';
 
 /** Bloquea rutas privadas: sin sesión redirige a /login y recuerda el destino. */
 export function ProtectedRoute() {
-  const { status } = useAuth();
+  const { status, passwordRecovery } = useAuth();
   const location = useLocation();
   if (status === 'loading') return <AdminShellSkeleton />;
+  if (passwordRecovery) return <Navigate to="/restablecer" replace />;
   if (status === 'anonymous') return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   return <Outlet />;
 }
 
 /** Para /login y /registro: si ya hay sesión, entra directo a la app. */
 export function GuestOnlyRoute() {
-  const { status, profile } = useAuth();
+  const { status, profile, passwordRecovery } = useAuth();
   const location = useLocation();
+  if (passwordRecovery) return <Navigate to="/restablecer" replace />;
   if (status === 'loading' || (status === 'authenticated' && !profile)) return <AuthSkeleton />;
   if (status === 'authenticated') {
     const from = (location.state as { from?: string } | null)?.from;

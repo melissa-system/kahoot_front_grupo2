@@ -1,49 +1,42 @@
 import { useState, type FormEvent } from 'react';
-import { QUESTION_DURATION, REVIEW_DURATION } from '../../api/types';
-import { Alert } from '../../components/ui/Alert';
+import { QUESTION_DURATION, QUESTION_DURATION_PRESETS, REVIEW_DURATION } from '../../api/types';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { errorMessage } from '../../lib/http';
+import { loadQuizTiming, saveQuizTiming, type QuizTiming } from '../../lib/quizTiming';
 
 interface Props {
   open: boolean;
+  quizId: string;
   quizTitle: string;
   questionsCount: number;
   onClose(): void;
-  onStart(values: { questionDurationSeconds: number; reviewDurationSeconds: number }): Promise<void>;
+  onSaved?(timing: QuizTiming): void;
 }
 
-const QUESTION_PRESETS = [10, 20, 30, 60];
+export function TimeLimitDialog({ open, quizId, quizTitle, questionsCount, onClose, onSaved }: Props) {
+  const [questionSeconds, setQuestionSeconds] = useState(() => loadQuizTiming(quizId).questionDurationSeconds);
+  const [reviewSeconds, setReviewSeconds] = useState(() => loadQuizTiming(quizId).reviewDurationSeconds);
 
-export function StartSessionDialog({ open, quizTitle, questionsCount, onClose, onStart }: Props) {
-  const [questionSeconds, setQuestionSeconds] = useState<number>(QUESTION_DURATION.default);
-  const [reviewSeconds, setReviewSeconds] = useState<number>(REVIEW_DURATION.default);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      await onStart({ questionDurationSeconds: questionSeconds, reviewDurationSeconds: reviewSeconds });
-    } catch (err) {
-      setError(errorMessage(err));
-      setLoading(false);
-    }
+    const timing = saveQuizTiming(quizId, {
+      questionDurationSeconds: questionSeconds,
+      reviewDurationSeconds: reviewSeconds,
+    });
+    onSaved?.(timing);
+    onClose();
   }
 
   return (
-    <Modal open={open} title="Abrir sala en vivo" onClose={onClose}>
+    <Modal open={open} title="Tiempo límite" onClose={onClose}>
       <form onSubmit={submit} className="space-y-5">
         <p className="text-muted">
           <strong className="text-fg">{quizTitle}</strong> · {questionsCount} {questionsCount === 1 ? 'pregunta' : 'preguntas'}
         </p>
-        {error && <Alert tone="danger">{error}</Alert>}
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">Tiempo por pregunta</legend>
+          <legend className="text-sm font-medium">Tiempo por defecto</legend>
           <div className="flex flex-wrap gap-2">
-            {QUESTION_PRESETS.map((s) => (
+            {QUESTION_DURATION_PRESETS.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -84,13 +77,11 @@ export function StartSessionDialog({ open, quizTitle, questionsCount, onClose, o
             <span className="w-12 text-right font-semibold">{reviewSeconds} s</span>
           </span>
         </label>
-        <p className="text-sm text-muted">El servidor controla el tiempo: al terminar la revisión avanza solo a la siguiente pregunta.</p>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+        <p className="text-sm text-muted">Las preguntas sin tiempo propio usan este valor. Al terminar la revisión, avanza solo a la siguiente.</p>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="submit">Guardar</Button>
+          <Button variant="secondary" onClick={onClose}>
             Cancelar
-          </Button>
-          <Button type="submit" loading={loading}>
-            Crear sala
           </Button>
         </div>
       </form>

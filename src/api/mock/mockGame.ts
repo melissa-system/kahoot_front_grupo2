@@ -19,6 +19,7 @@ import type {
   SessionState,
 } from '../types';
 import { SESSION_CODE_PATTERN } from '../types';
+import { isCorrectChoice, questionKindOf } from '../../lib/questionKind';
 import { db, uuid } from './mockDb';
 
 export class MockSessionError extends Error {
@@ -39,7 +40,7 @@ interface MockAnswer {
   id: string;
   participantId: string;
   sessionQuestionId: string;
-  choice: boolean;
+  choice: boolean | number;
   answeredAt: number;
   score: number;
 }
@@ -135,23 +136,30 @@ function receiptOf(answer: MockAnswer): AnswerReceipt {
   return {
     id: answer.id,
     sessionQuestionId: answer.sessionQuestionId,
-    choice: answer.choice,
+    ...(typeof answer.choice === 'number' ? { choiceIndex: answer.choice } : { choice: answer.choice }),
     answeredAt: new Date(answer.answeredAt).toISOString(),
   };
+}
+
+function questionSeconds(question: Question, fallback: number) {
+  return question.durationSeconds ?? fallback;
 }
 
 function openQuestion(room: Room, index: number) {
   const q = room.questions[index];
   const opened = Date.now();
+  const seconds = questionSeconds(q, room.state.questionDurationSeconds);
   room.state.phase = 'ANSWERING';
   room.state.currentIndex = index;
   room.state.currentQuestion = {
     id: q.id,
     position: index,
     statement: q.statement,
+    kind: questionKindOf(q),
+    options: q.kind === 'multiple' ? q.options : null,
     imageUrl: q.imageUrl,
     openedAt: new Date(opened).toISOString(),
-    closesAt: new Date(opened + room.state.questionDurationSeconds * 1000).toISOString(),
+    closesAt: new Date(opened + seconds * 1000).toISOString(),
     closedAt: null,
     reviewEndsAt: null,
     status: 'OPEN',
@@ -161,10 +169,15 @@ function openQuestion(room: Room, index: number) {
 
   const players = room.state.participants.filter((p) => p.userId.startsWith('bot-'));
   for (const p of players) {
-    const wait = Math.min(room.state.questionDurationSeconds * 1000 - 500, 1200 + Math.random() * 5000);
+    const wait = Math.min(seconds * 1000 - 500, 1200 + Math.random() * 5000);
     later(room, wait, () => {
       if (room.state.currentQuestion?.id !== q.id || room.state.currentQuestion.status !== 'OPEN') return;
-      const choice = Math.random() < 0.7 ? q.correctBoolean : !q.correctBoolean;
+      const choice =
+        questionKindOf(q) === 'multiple'
+          ? Math.floor(Math.random() * (q.options?.length ?? 4))
+          : Math.random() < 0.7
+            ? q.correctBoolean
+            : !q.correctBoolean;
       const list = room.answers.get(q.id)!;
       if (list.some((a) => a.participantId === p.id)) return;
       const elapsed = Date.now() - opened;
@@ -174,12 +187,12 @@ function openQuestion(room: Room, index: number) {
         sessionQuestionId: q.id,
         choice,
         answeredAt: Date.now(),
-        score: pointsFor(choice === q.correctBoolean, elapsed),
+        score: pointsFor(isCorrectChoice(q, choice), elapsed),
       });
       if (list.length >= room.state.participants.length) closeQuestion(room, q.id);
     });
   }
-  later(room, room.state.questionDurationSeconds * 1000, () => closeQuestion(room, q.id));
+  later(room, seconds * 1000, () => closeQuestion(room, q.id));
 }
 
 function closeQuestion(room: Room, questionId: string, finishing = false) {
@@ -191,7 +204,10 @@ function closeQuestion(room: Room, questionId: string, finishing = false) {
   room.state.currentQuestion = {
     ...current,
     status: 'CLOSED',
+    kind: questionKindOf(q),
+    options: q.kind === 'multiple' ? q.options : null,
     correctBoolean: q.correctBoolean,
+    correctIndexes: q.correctIndexes ?? null,
     closedAt: new Date(closed).toISOString(),
     reviewEndsAt: finishing ? null : new Date(closed + room.reviewSeconds * 1000).toISOString(),
   };
@@ -289,11 +305,11 @@ function historyItem(room: Room): SessionHistoryItem {
     const answers = room.answers.get(question.id) ?? [];
     const answered = new Set(answers.map((a) => a.participantId));
     const correctNames = answers
-      .filter((a) => a.choice === question.correctBoolean)
+      .filter((a) => isCorrectChoice(question, a.choice))
       .map((a) => names.get(a.participantId) ?? 'Participante')
       .sort((a, b) => a.localeCompare(b, 'es'));
     const wrongNames = answers
-      .filter((a) => a.choice !== question.correctBoolean)
+      .filter((a) => !isCorrectChoice(question, a.choice))
       .map((a) => names.get(a.participantId) ?? 'Participante')
       .sort((a, b) => a.localeCompare(b, 'es'));
     const unansweredNames = room.state.participants
@@ -303,7 +319,10 @@ function historyItem(room: Room): SessionHistoryItem {
     return {
       position: question.position,
       statement: question.statement,
+      kind: questionKindOf(question),
+      options: question.options ?? null,
       correctBoolean: question.correctBoolean,
+      correctIndexes: question.correctIndexes ?? null,
       correctCount: correctNames.length,
       wrongCount: wrongNames.length,
       unansweredCount: unansweredNames.length,
@@ -339,12 +358,15 @@ function playedItem(room: Room, userId: string): PlayedSessionItem {
     return {
       position: question.position,
       statement: question.statement,
+      kind: questionKindOf(question),
+      options: question.options ?? null,
       correctBoolean: question.correctBoolean,
+      correctIndexes: question.correctIndexes ?? null,
       myChoice: answer ? answer.choice : null,
     };
   });
-  const correctCount = questions.filter((question) => question.myChoice === question.correctBoolean).length;
-  const wrongCount = questions.filter((question) => question.myChoice !== null && question.myChoice !== question.correctBoolean).length;
+  const correctCount = questions.filter((question) => isCorrectChoice(question, question.myChoice)).length;
+  const wrongCount = questions.filter((question) => question.myChoice !== null && !isCorrectChoice(question, question.myChoice)).length;
   return {
     id: room.state.id,
     code: room.state.code,
@@ -433,7 +455,7 @@ export const mockGame = {
       code?: string;
       finishedAt?: string;
       questions: Question[];
-      players: Array<{ userId?: string; displayName: string; choices: boolean[] }>;
+      players: Array<{ userId?: string; displayName: string; choices: Array<boolean | number> }>;
     },
   ): SessionHistoryItem {
     const state = putRoom(hostId, options.quizTitle, structuredClone(options.questions), 15, 5, options.code);
@@ -452,7 +474,7 @@ export const mockGame = {
         const question = room.questions[index];
         if (!question) return;
         const list = room.answers.get(question.id) ?? [];
-        const score = pointsFor(choice === question.correctBoolean, 0);
+        const score = pointsFor(isCorrectChoice(question, choice), 0);
         list.push({
           id: uuid(),
           participantId: participant.id,
@@ -489,9 +511,13 @@ export const mockGame = {
             id: uuid(),
             quizId: 'demo',
             statement: 'Haskell es un lenguaje puramente funcional',
+            kind: 'boolean',
             correctBoolean: true,
+            options: null,
+            correctIndexes: null,
             imageKey: null,
             imageUrl: null,
+            durationSeconds: null,
             position: 0,
           },
         ];
@@ -556,9 +582,13 @@ export const mockGame = {
             id: uuid(),
             quizId: 'demo',
             statement: 'Haskell es un lenguaje puramente funcional',
+            kind: 'boolean',
             correctBoolean: true,
+            options: null,
+            correctIndexes: null,
             imageKey: null,
             imageUrl: null,
+            durationSeconds: null,
             position: 0,
           },
         ];
@@ -635,8 +665,10 @@ export const mockGame = {
     return { sessionId };
   },
 
-  answer(userId: string, sessionQuestionId: string, choice: boolean): { answer: AnswerReceipt } {
-    if (typeof choice !== 'boolean' || !sessionQuestionId) throw err('VALIDATION_ERROR', 'Los datos de la solicitud no son válidos');
+  answer(userId: string, sessionQuestionId: string, choice: boolean | number): { answer: AnswerReceipt } {
+    const validBoolean = typeof choice === 'boolean';
+    const validIndex = typeof choice === 'number' && Number.isInteger(choice) && choice >= 0 && choice <= 3;
+    if ((!validBoolean && !validIndex) || !sessionQuestionId) throw err('VALIDATION_ERROR', 'Los datos de la solicitud no son válidos');
     const room = [...rooms.values()].find((r) => r.state.participants.some((p) => p.userId === userId) || r.questions.some((q) => q.id === sessionQuestionId));
     if (!room) throw err('SESSION_NOT_FOUND', 'Sala no encontrada');
     if (room.state.hostId === userId) throw err('HOST_CANNOT_PARTICIPATE', 'El host dirige la sala y no juega en ella');
@@ -664,7 +696,7 @@ export const mockGame = {
       sessionQuestionId,
       choice,
       answeredAt,
-      score: pointsFor(choice === q.correctBoolean, elapsed),
+      score: pointsFor(isCorrectChoice(q, choice), elapsed),
     };
     list.push(saved);
     room.answers.set(sessionQuestionId, list);
@@ -701,7 +733,7 @@ export const mockGame = {
     requireHost(room, userId);
     if (room.state.status !== 'IN_PROGRESS') throw err('INVALID_SESSION_STATE', 'La acción no está permitida en el estado actual');
     const q = room.state.currentQuestion;
-    if (!q || q.id !== expectedQuestionId) throw err('INVALID_SESSION_STATE', 'La pregunta ya cambió');
+    if (!q || q.id !== expectedQuestionId) throw err('STALE_QUESTION', 'La pregunta actual ya cambió');
     if (q.status === 'OPEN') throw err('QUESTION_NOT_CLOSED', 'La pregunta aún está abierta');
     if (remainingMs(room) > 0) throw err('REVIEW_IN_PROGRESS', 'La revisión aún no termina');
     autoAdvance(room, q.id);
@@ -728,5 +760,18 @@ export const mockGame = {
   forceClose(sessionId: string) {
     const room = getRoom(sessionId);
     if (room.state.currentQuestion?.status === 'OPEN') closeQuestion(room, room.state.currentQuestion.id);
+  },
+
+  /** Solo pruebas: salta la espera de revisión y abre la siguiente pregunta. */
+  forceAdvance(sessionId: string) {
+    const room = getRoom(sessionId);
+    const question = room.state.currentQuestion;
+    if (!question || question.status !== 'CLOSED') return;
+    autoAdvance(room, question.id);
+  },
+
+  /** Solo pruebas: sobre actual de la sala. */
+  peek(sessionId: string) {
+    return envelope(getRoom(sessionId));
   },
 };

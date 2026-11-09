@@ -1,4 +1,5 @@
 import { TextAreaField } from '../../components/ui/Field';
+import { FormulaPreview } from '../../components/ui/MathText';
 import { validateStatement } from '../../lib/validation';
 import type { DraftQuestion } from '../../api/chatbot.types';
 import type { ReviewQuestion } from './useQuizChat';
@@ -17,10 +18,11 @@ export function DraftQuestionCard({ question, index, disabled, onChange }: {
       <TextAreaField label={`Afirmación propuesta ${index + 1}`} value={question.statement} maxLength={500} rows={3} className="text-base leading-relaxed sm:text-lg"
         disabled={disabled || !question.selected} onChange={(e) => onChange({ statement: e.target.value })}
         error={question.selected ? validateStatement(question.statement) : undefined} />
+      <FormulaPreview text={question.statement} />
       <fieldset disabled={disabled || !question.selected}>
         <legend className="mb-2 text-sm font-medium">Respuesta correcta · pregunta {index + 1}</legend>
         <div className="grid grid-cols-2 gap-2">
-          {[true, false].map((answer) => <label key={String(answer)} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border text-base font-semibold ${question.correctBoolean === answer ? answer ? 'border-success bg-success-soft text-success' : 'border-danger bg-danger-soft text-danger' : 'border-line bg-surface-2 text-muted'}`}>
+          {[true, false].map((answer) => <label key={String(answer)} className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 text-base font-semibold ${question.correctBoolean === answer ? answer ? 'border-emerald-400 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'border-red-400 bg-red-500 text-white shadow-lg shadow-red-500/30' : answer ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400' : 'border-red-500/60 bg-red-500/15 text-red-400'}`}>
             <input type="radio" name={`answer-${question.key}`} value={String(answer)} checked={question.correctBoolean === answer}
               onChange={() => onChange({ correctBoolean: answer })} className="accent-current" />{answer ? 'Verdadero' : 'Falso'}
           </label>)}

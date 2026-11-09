@@ -6,10 +6,12 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MathText } from '../../components/ui/MathText';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { HistorySkeleton } from '../../components/ui/Skeleton';
 import { useApi } from '../../auth/useAuth';
 import { cn } from '../../lib/cn';
+import { choiceLabel, correctLabel, isCorrectChoice } from '../../lib/questionKind';
 import { errorMessage } from '../../lib/http';
 import { useResource } from '../../lib/useResource';
 import { CourseBanner } from '../CourseOverviewPage';
@@ -73,17 +75,19 @@ function PlayedCard({ item, open, onToggle }: { item: PlayedSessionItem; open: b
         {open && (
           <ol className="space-y-3 border-t border-line pt-5" aria-label={`Tus respuestas en ${item.quizTitle}`}>
             {item.questions.map((question) => {
-              const ok = question.myChoice === question.correctBoolean;
+              const ok = isCorrectChoice(question, question.myChoice);
               const missed = question.myChoice === null;
               return (
                 <li key={question.position} className="rounded-xl border border-line bg-surface-2/40 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Pregunta {question.position + 1} de {item.questionsCount}
                   </p>
-                  <p className="mt-1 font-semibold">{question.statement}</p>
+                  <p className="mt-1 font-semibold">
+                    <MathText text={question.statement} />
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge tone={question.correctBoolean ? 'success' : 'danger'}>
-                      Correcta: {question.correctBoolean ? 'Verdadero' : 'Falso'}
+                    <Badge tone="success">
+                      Correcta: <MathText text={correctLabel(question)} />
                     </Badge>
                     {missed ? (
                       <Badge tone="neutral" icon={<CircleDashed className="h-4 w-4" />}>
@@ -91,7 +95,7 @@ function PlayedCard({ item, open, onToggle }: { item: PlayedSessionItem; open: b
                       </Badge>
                     ) : (
                       <Badge tone={ok ? 'success' : 'danger'} icon={ok ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}>
-                        Tu respuesta: {question.myChoice ? 'Verdadero' : 'Falso'}
+                        Tu respuesta: <MathText text={choiceLabel(question, question.myChoice)} />
                       </Badge>
                     )}
                   </div>

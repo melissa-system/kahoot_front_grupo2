@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { SESSION_EVENTS, type RoomEnvelope, type SessionState } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 import { ApiError, errorMessage } from '../lib/http';
+import { liveDeadlineAt } from '../lib/sessionTiming';
 import { createSessionSocket, sendCommand, SocketCommandError, type SessionSocket } from './sessionSocket';
 
 export type ConnectionStatus = 'connecting' | 'online' | 'reconnecting' | 'offline';
@@ -12,6 +13,8 @@ export interface HostSessionError {
 }
 
 const FATAL_CODES = new Set(['SESSION_NOT_FOUND', 'HOST_REQUIRED', 'NOT_FOUND', 'FORBIDDEN']);
+const SOFT_ADVANCE_CODES = new Set(['STALE_QUESTION', 'SESSION_FINISHED']);
+const RETRY_ADVANCE_CODES = new Set(['REVIEW_IN_PROGRESS', 'TIMEOUT', 'DISCONNECTED']);
 const TOKEN_REFRESH_MS = 5 * 60 * 1000;
 const MAX_AUTH_RETRIES = 3;
 
@@ -32,10 +35,28 @@ export function envelopeFromState(state: SessionState): RoomEnvelope {
   };
 }
 
+function gameProgress(envelope: RoomEnvelope): number {
+  const status = envelope.state.status === 'FINISHED' ? 3 : envelope.state.status === 'IN_PROGRESS' ? 1 : 0;
+  const phase =
+    envelope.state.phase === 'FINISHED' ? 3 : envelope.state.phase === 'REVIEW' ? 2 : envelope.state.phase === 'ANSWERING' ? 1 : 0;
+  return status * 1000 + envelope.state.currentIndex * 10 + phase;
+}
+
+/** El worker ya abrió otra pregunta (o terminó): no hay que pedir advance. */
+export function hasLeftReview(room: RoomEnvelope | null, expectedQuestionId?: string): boolean {
+  const current = room?.state.currentQuestion;
+  if (!current || room?.state.status !== 'IN_PROGRESS') return true;
+  if (!expectedQuestionId) return current.status !== 'CLOSED';
+  return current.id !== expectedQuestionId || current.status !== 'CLOSED';
+}
+
 /** ¿Debe reemplazar `next` al sobre actual? Evita aplicar eventos viejos o de otra sala. */
 export function isNewer(current: RoomEnvelope | null, next: RoomEnvelope, sessionId: string): boolean {
   if (next.sessionId !== sessionId) return false;
   if (!current) return true;
+  const ahead = gameProgress(next) - gameProgress(current);
+  if (ahead > 0) return true;
+  if (ahead < 0) return false;
   if (current.streamId !== next.streamId) return next.streamId !== 'rest';
   return next.sequence >= current.sequence;
 }
@@ -61,7 +82,7 @@ export function useHostSession(sessionId: string) {
       if (!isNewer(roomRef.current, next, sessionId)) return;
       roomRef.current = next;
       setRoom(next);
-      setDeadline(next.remainingMs > 0 ? Date.now() + next.remainingMs : null);
+      setDeadline(liveDeadlineAt(next));
     },
     [sessionId],
   );
@@ -160,6 +181,8 @@ export function useHostSession(sessionId: string) {
     async (event: 'game:start' | 'game:advance' | 'game:finish', extra: Record<string, unknown> = {}) => {
       const socket = socketRef.current;
       if (!socket) return false;
+      const expectedQuestionId = extra.expectedQuestionId as string | undefined;
+      if (event === 'game:advance' && hasLeftReview(roomRef.current, expectedQuestionId)) return true;
       setBusy(event);
       setCommandError(null);
       try {
@@ -167,7 +190,17 @@ export function useHostSession(sessionId: string) {
         return true;
       } catch (err) {
         const e = err instanceof SocketCommandError ? err : new SocketCommandError('INTERNAL_ERROR', errorMessage(err));
-        setCommandError({ code: e.code, message: e.message });
+        if (event === 'game:advance' && SOFT_ADVANCE_CODES.has(e.code)) {
+          if (hasLeftReview(roomRef.current, expectedQuestionId)) return true;
+          try {
+            apply(await sendCommand<RoomEnvelope>(socket, 'room:subscribe', { sessionId }));
+          } catch {
+            /* el auto-avance reintenta si seguimos en la misma revisión */
+          }
+          return hasLeftReview(roomRef.current, expectedQuestionId);
+        }
+        if (!(event === 'game:advance' && RETRY_ADVANCE_CODES.has(e.code)))
+          setCommandError({ code: e.code, message: e.message });
         // Tras un error incierto, el estado real lo dicta el servidor.
         if (e.code === 'TIMEOUT' || e.code === 'INTERNAL_ERROR')
           sendCommand<RoomEnvelope>(socket, 'room:subscribe', { sessionId }).then(apply, () => undefined);
@@ -179,6 +212,34 @@ export function useHostSession(sessionId: string) {
     [apply, sessionId],
   );
 
+  const advance = useCallback(() => {
+    const question = roomRef.current?.state.currentQuestion;
+    if (!question) return Promise.resolve(false);
+    if (question.status !== 'CLOSED') return Promise.resolve(true);
+    return run('game:advance', { expectedQuestionId: question.id });
+  }, [run]);
+
+  // Si el worker del servidor no avanza al vencer la revisión, el anfitrión lo pide.
+  useEffect(() => {
+    const question = room?.state.currentQuestion;
+    if (!question || question.status !== 'CLOSED' || room.state.status !== 'IN_PROGRESS') return;
+    let cancelled = false;
+    const wait = Math.max(0, (deadline ?? Date.now()) - Date.now()) + 250;
+    const timer = window.setTimeout(async () => {
+      for (let attempt = 0; attempt < 8 && !cancelled; attempt += 1) {
+        const current = roomRef.current?.state.currentQuestion;
+        if (!current || current.id !== question.id || current.status !== 'CLOSED') return;
+        const ok = await advance();
+        if (ok || cancelled) return;
+        await new Promise((resolve) => window.setTimeout(resolve, 400 * (attempt + 1)));
+      }
+    }, wait);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [room?.state.currentQuestion?.id, room?.state.currentQuestion?.status, room?.state.status, deadline, advance]);
+
   return {
     room,
     state: room?.state ?? null,
@@ -189,7 +250,7 @@ export function useHostSession(sessionId: string) {
     commandError,
     clearCommandError: () => setCommandError(null),
     start: () => run('game:start'),
-    advance: () => (room?.state.currentQuestion ? run('game:advance', { expectedQuestionId: room.state.currentQuestion.id }) : Promise.resolve(false)),
+    advance,
     finish: () => run('game:finish'),
     /** Solo modo mock: simula una caída de red para probar la reconexión. */
     simulateDrop: () => {

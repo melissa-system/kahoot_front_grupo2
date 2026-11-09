@@ -4,6 +4,7 @@
  */
 
 export type UserRole = 'teacher' | 'student';
+export type QuestionKind = 'boolean' | 'multiple';
 
 export interface Profile {
   userId: string;
@@ -18,6 +19,8 @@ export interface Quiz {
   ownerId: string;
   title: string;
   description: string | null;
+  imageKey: string | null;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,9 +33,13 @@ export interface Question {
   id: string;
   quizId: string;
   statement: string;
+  kind: QuestionKind;
   correctBoolean: boolean;
+  options: string[] | null;
+  correctIndexes: number[] | null;
   imageKey: string | null;
   imageUrl: string | null;
+  durationSeconds: number | null;
   position: number;
 }
 
@@ -48,7 +55,11 @@ export type UpdateQuizInput = Partial<CreateQuizInput>;
 
 export interface CreateQuestionInput {
   statement: string;
-  correctBoolean: boolean;
+  kind?: QuestionKind;
+  correctBoolean?: boolean;
+  options?: string[];
+  correctIndexes?: number[];
+  durationSeconds?: number | null;
   position?: number;
 }
 export type UpdateQuestionInput = Partial<CreateQuestionInput>;
@@ -65,6 +76,7 @@ export type SessionStatus = 'WAITING' | 'IN_PROGRESS' | 'FINISHED';
 export type SessionPhase = 'WAITING' | 'ANSWERING' | 'REVIEW' | 'FINISHED';
 
 export const QUESTION_DURATION = { min: 5, max: 120, default: 30 } as const;
+export const QUESTION_DURATION_PRESETS = [10, 20, 30, 60] as const;
 export const REVIEW_DURATION = { min: 3, max: 15, default: 5 } as const;
 
 export interface CreateSessionInput {
@@ -85,6 +97,8 @@ interface CurrentQuestionFields {
   id: string;
   position: number;
   statement: string;
+  kind?: QuestionKind;
+  options?: string[] | null;
   imageUrl: string | null;
   openedAt: string;
   closesAt: string;
@@ -93,7 +107,10 @@ interface CurrentQuestionFields {
 }
 
 export type CurrentQuestionView = CurrentQuestionFields &
-  ({ status: 'OPEN' } | { status: 'CLOSED'; correctBoolean: boolean });
+  (
+    | { status: 'OPEN' }
+    | { status: 'CLOSED'; correctBoolean: boolean; correctIndexes?: number[] | null }
+  );
 
 export interface SessionResultView {
   participantId: string;
@@ -165,7 +182,8 @@ export function isValidSessionCode(code: string): boolean {
 
 export interface SubmitAnswerInput {
   sessionQuestionId: string;
-  choice: boolean;
+  choice?: boolean;
+  choiceIndex?: number;
 }
 
 /** Ack de `answer:submit`: el servidor confirma la respuesta registrada. */
@@ -190,7 +208,10 @@ export interface SessionHistoryRankingRow {
 export interface SessionHistoryQuestionStat {
   position: number;
   statement: string;
+  kind?: QuestionKind;
+  options?: string[] | null;
   correctBoolean: boolean;
+  correctIndexes?: number[] | null;
   correctCount: number;
   wrongCount: number;
   unansweredCount: number;
@@ -202,8 +223,11 @@ export interface SessionHistoryQuestionStat {
 export interface PlayedQuestion {
   position: number;
   statement: string;
+  kind?: QuestionKind;
+  options?: string[] | null;
   correctBoolean: boolean;
-  myChoice: boolean | null;
+  correctIndexes?: number[] | null;
+  myChoice: boolean | number | null;
 }
 
 /** Partida finalizada de `GET /sessions/played` (el estudiante como participante). */

@@ -33,11 +33,12 @@ export function ConfirmDialog({ open, title, description, confirmLabel = 'Confir
     <dialog
       ref={ref}
       aria-labelledby="confirm-title"
+      closedby="closerequest"
       onCancel={(e) => {
         e.preventDefault();
         onCancel();
       }}
-      className="m-auto w-[min(92vw,440px)] rounded-2xl border border-line bg-surface p-0 text-fg backdrop:bg-black/60"
+      className="m-auto w-[min(92vw,440px)] rounded-2xl border border-line bg-surface p-0 text-fg backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       <div className="space-y-4 p-6">
         <h2 id="confirm-title" className="text-xl font-bold">

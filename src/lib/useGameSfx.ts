@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { CurrentQuestionView, SessionPhase, SessionStatus } from '../api/types';
 import type { ConnectionStatus } from '../realtime/useHostSession';
+import { isCorrectChoice } from './questionKind';
 import { playSfx } from './sfx';
 
 export function useGameSfx({
@@ -17,7 +18,7 @@ export function useGameSfx({
   phase?: SessionPhase;
   question?: CurrentQuestionView | null;
   participantCount: number;
-  myChoice?: boolean;
+  myChoice?: boolean | number;
   connection?: ConnectionStatus;
 }) {
   const prev = useRef<{
@@ -48,8 +49,8 @@ export function useGameSfx({
     if (last.status === 'WAITING' && status === 'IN_PROGRESS') playSfx('question');
     else if (last.questionId && question?.id && last.questionId !== question.id) playSfx('question');
     if (last.questionStatus === 'OPEN' && question?.status === 'CLOSED') {
-      if (typeof myChoice === 'boolean' && question.correctBoolean === myChoice) playSfx('correct');
-      else if (typeof myChoice === 'boolean') playSfx('wrong');
+      if (myChoice !== undefined && isCorrectChoice(question, myChoice)) playSfx('correct');
+      else if (myChoice !== undefined) playSfx('wrong');
       else playSfx('reveal');
     }
     if (last.status !== 'FINISHED' && status === 'FINISHED') playSfx('finish');

@@ -41,21 +41,22 @@ function HeaderBones({ withAction }: { withAction?: boolean }) {
 
 function QuizListBones() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-      {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-4 border-b border-line px-5 py-5 last:border-b-0 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1 space-y-3 pl-2">
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-4 w-1/2" />
-            <div className="flex gap-3">
-              <Skeleton className="h-7 w-28 rounded-full" />
-              <Skeleton className="h-7 w-36 rounded-full" />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="overflow-hidden rounded-2xl border border-line bg-surface">
+          <Skeleton className="h-40 w-full" />
+          <div className="space-y-3 p-5">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <div className="flex gap-2">
+              <Skeleton className="h-7 w-24 rounded-lg" />
+              <Skeleton className="h-7 w-28 rounded-lg" />
             </div>
-          </div>
-          <div className="flex gap-2 pl-2">
-            <Skeleton className="h-9 w-20 rounded-lg" />
-            <Skeleton className="h-9 w-20 rounded-lg" />
-            <Skeleton className="h-9 w-9 rounded-lg" />
+            <div className="flex gap-2 pt-1">
+              <Skeleton className="h-9 w-20 rounded-lg" />
+              <Skeleton className="h-9 w-20 rounded-lg" />
+              <Skeleton className="h-9 w-9 rounded-lg" />
+            </div>
           </div>
         </div>
       ))}

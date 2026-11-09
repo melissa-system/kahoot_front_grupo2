@@ -1,4 +1,5 @@
 import { Check, Copy, Flag, Play, SkipForward, Trophy, Users, X } from 'lucide-react';
+import { ChoiceBoard } from '../../components/live/ChoiceBoard';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import coin from '../../assets/brand/taku-coin.png';
@@ -10,6 +11,7 @@ import { Podium } from '../../components/live/Podium';
 import { QuestionBeat, type ReviewStage } from '../../components/live/QuestionBeat';
 import { CountdownRing } from '../../components/live/CountdownRing';
 import { Ranking } from '../../components/live/Ranking';
+import { answeringWindowSeconds } from '../../lib/sessionTiming';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -19,7 +21,9 @@ import { HostSessionSkeleton } from '../../components/ui/Skeleton';
 import { Spinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/useAuth';
+import { MathText } from '../../components/ui/MathText';
 import { cn } from '../../lib/cn';
+import { correctLabel } from '../../lib/questionKind';
 import { activeQuestionBgm, questionBgmKind, useQuestionBgm } from '../../lib/sfx';
 import { useGameSfx } from '../../lib/useGameSfx';
 import { useCountdown, useHostSession } from '../../realtime/useHostSession';
@@ -67,7 +71,7 @@ function Lobby({ room, onStart, onCancel, busy }: { room: RoomEnvelope; onStart(
           </Button>
         </div>
         <p className="text-sm text-muted">
-          {state.questionsCount} preguntas · {state.questionDurationSeconds} s por pregunta
+          {state.questionsCount} preguntas · {state.questionDurationSeconds} s por defecto
         </p>
       </Card>
 
@@ -146,7 +150,7 @@ function LiveQuestion({
         </div>
         <CountdownRing
           seconds={seconds}
-          total={reviewing ? Math.max(room.reviewDurationSeconds, seconds) : state.questionDurationSeconds}
+          total={reviewing ? Math.max(room.reviewDurationSeconds, seconds) : answeringWindowSeconds(q, state.questionDurationSeconds)}
           label={reviewing ? 'Tiempo de revisión' : 'Tiempo para responder'}
           tickWhenUrgent={!reviewing}
         />
@@ -171,30 +175,19 @@ function LiveQuestion({
         </Card>
       ) : (
         <Card className="p-4 sm:p-10">
-          <h2 className="text-center text-xl font-extrabold leading-tight sm:text-4xl">{q.statement}</h2>
+          <h2 className="text-center text-xl font-extrabold leading-tight sm:text-4xl">
+            <MathText text={q.statement} />
+          </h2>
           {q.imageUrl && <img src={q.imageUrl} alt="Imagen de la pregunta" className="mx-auto mt-4 max-h-[28vh] rounded-2xl border border-line object-contain sm:mt-6 sm:max-h-[40vh]" />}
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:mt-8 sm:gap-4">
-            {[true, false].map((value) => {
-              const correct = reviewing && q.correctBoolean === value;
-              const wrong = reviewing && !correct;
-              return (
-                <div
-                  key={String(value)}
-                  className={cn(
-                    'flex min-h-[4.75rem] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-center text-sm font-extrabold leading-tight transition sm:h-28 sm:flex-row sm:gap-3 sm:text-3xl sm:leading-none',
-                    value ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger',
-                    correct && 'pl-pop ring-4 ring-current',
-                    wrong && 'opacity-30',
-                  )}
-                >
-                  {value ? <Check className="h-5 w-5 sm:h-8 sm:w-8" /> : <X className="h-5 w-5 sm:h-8 sm:w-8" />}
-                  {value ? 'Verdadero' : 'Falso'}
-                </div>
-              );
-            })}
-          </div>
+          <ChoiceBoard question={q} reviewing={reviewing} />
           <p className={cn('mt-4 text-center sm:mt-6', reviewing ? 'pl-pop text-xl font-extrabold sm:text-2xl' : 'text-sm text-muted sm:text-base')} aria-live="polite">
-            {reviewing ? `La correcta es ${q.correctBoolean ? 'Verdadero' : 'Falso'}` : `${state.participants.length} participantes respondiendo · la respuesta se revela al cerrar`}
+            {reviewing ? (
+              <>
+                La correcta es <MathText text={correctLabel(q)} />
+              </>
+            ) : (
+              `${state.participants.length} participantes respondiendo · la respuesta se revela al cerrar`
+            )}
           </p>
         </Card>
       )}
@@ -307,15 +300,17 @@ export function HostSessionPage() {
       )}
       {inProgress && state.currentQuestion && (
         <LifeAndDeathSplash enabled={questionBgmKind(state.currentIndex, state.questionsCount) === 'final'}>
-          <QuestionBeat
-            index={state.currentIndex}
-            reviewing={state.currentQuestion.status === 'CLOSED'}
-            skipIntro={questionBgmKind(state.currentIndex, state.questionsCount) === 'final'}
-          >
-            {(stage) => (
-              <LiveQuestion room={room} deadline={host.deadline} busy={host.busy} stage={stage} onAdvance={() => void host.advance()} />
-            )}
-          </QuestionBeat>
+          <div key={state.currentQuestion.id} className="pl-stage-in">
+            <QuestionBeat
+              index={state.currentIndex}
+              reviewing={state.currentQuestion.status === 'CLOSED'}
+              skipIntro
+            >
+              {(stage) => (
+                <LiveQuestion room={room} deadline={host.deadline} busy={host.busy} stage={stage} onAdvance={() => void host.advance()} />
+              )}
+            </QuestionBeat>
+          </div>
         </LifeAndDeathSplash>
       )}
       {state.status === 'FINISHED' && <Finished room={room} />}

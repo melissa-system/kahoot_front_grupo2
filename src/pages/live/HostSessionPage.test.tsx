@@ -36,6 +36,43 @@ describe('Panel del anfitrión', () => {
     expect(screen.queryByText('Clasificación')).not.toBeInTheDocument();
   });
 
+  it('tras cerrar la pregunta espera la revisión y no se queda en Avanzando', async () => {
+    const session = createRoom();
+    mockGame.addParticipant(session.id, 'Camilo');
+    renderRoute(<HostSessionPage />, { path: '/app/evaluaciones/sala/:sessionId', route: `/app/evaluaciones/sala/${session.id}` });
+    await waitFor(() => expect(screen.queryByText('Conectando con la sala…')).not.toBeInTheDocument());
+    await userEvent.click(await screen.findByRole('button', { name: /Iniciar partida/ }));
+    expect(await screen.findByText('1/3')).toBeInTheDocument();
+    act(() => {
+      mockGame.forceClose(session.id);
+    });
+    expect(await screen.findByText('Clasificación')).toBeInTheDocument();
+    expect(screen.getByText(/Siguiente pregunta en \d+ s/)).toBeInTheDocument();
+    expect(screen.queryByText('Avanzando…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+  });
+
+  it('al abrir la siguiente pregunta la muestra de inmediato, sin quedarse en clasificación', async () => {
+    const session = createRoom();
+    mockGame.addParticipant(session.id, 'Camilo');
+    const second = db().questions[1].statement;
+    renderRoute(<HostSessionPage />, { path: '/app/evaluaciones/sala/:sessionId', route: `/app/evaluaciones/sala/${session.id}` });
+    await waitFor(() => expect(screen.queryByText('Conectando con la sala…')).not.toBeInTheDocument());
+    await userEvent.click(await screen.findByRole('button', { name: /Iniciar partida/ }));
+    expect(await screen.findByText('1/3')).toBeInTheDocument();
+    act(() => {
+      mockGame.forceClose(session.id);
+    });
+    expect(await screen.findByText('Clasificación')).toBeInTheDocument();
+    act(() => {
+      mockGame.forceAdvance(session.id);
+    });
+    expect(await screen.findByText('2/3')).toBeInTheDocument();
+    expect(screen.getByText(second)).toBeInTheDocument();
+    expect(screen.queryByText('Clasificación')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Preparando la siguiente pregunta/)).not.toBeInTheDocument();
+  });
+
   it('no deja dirigir una sala inexistente', async () => {
     loginAsDemo();
     renderRoute(<HostSessionPage />, { path: '/app/evaluaciones/sala/:sessionId', route: '/app/evaluaciones/sala/no-existe' });

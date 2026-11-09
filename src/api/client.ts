@@ -38,6 +38,12 @@ export function createApi(http: HttpClient) {
       create: (input: CreateQuizInput) => http.post<Quiz>('/quizzes', input),
       update: (id: string, input: UpdateQuizInput) => http.patch<Quiz>(`/quizzes/${id}`, input),
       remove: (id: string) => http.delete(`/quizzes/${id}`),
+      uploadImage: (id: string, file: File) => {
+        const form = new FormData();
+        form.append('file', file);
+        return http.put<QuestionImageResult>(`/quizzes/${id}/image`, form);
+      },
+      removeImage: (id: string) => http.delete(`/quizzes/${id}/image`),
     },
     questions: {
       createBatch: (quizId: string, input: QuestionBatchRequest) => http.post<QuestionBatchReceipt>(`/quizzes/${quizId}/questions/batch`, input),

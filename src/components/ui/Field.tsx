@@ -32,21 +32,31 @@ function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
   );
 }
 
-type InputProps = InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string | null; hint?: ReactNode };
+type InputProps = InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string | null; hint?: ReactNode; leading?: ReactNode };
 
-export const TextField = forwardRef<HTMLInputElement, InputProps>(function TextField({ label, error, hint, className, id, ...rest }, ref) {
+export const TextField = forwardRef<HTMLInputElement, InputProps>(function TextField(
+  { label, error, hint, leading, className, id, ...rest },
+  ref,
+) {
   const auto = useId();
   const fieldId = id ?? auto;
   return (
     <FieldShell label={label} error={error} hint={hint} id={fieldId}>
-      <input
-        ref={ref}
-        id={fieldId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
-        className={cn(base, 'h-11', error ? 'border-danger' : 'border-line', className)}
-        {...rest}
-      />
+      <div className="relative">
+        {leading ? (
+          <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-muted">
+            {leading}
+          </span>
+        ) : null}
+        <input
+          ref={ref}
+          id={fieldId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
+          className={cn(base, 'h-11', leading && 'pl-11', error ? 'border-danger' : 'border-line', className)}
+          {...rest}
+        />
+      </div>
     </FieldShell>
   );
 });

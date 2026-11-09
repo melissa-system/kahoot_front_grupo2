@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { ApiError, errorMessage } from '../lib/http';
 import { createSessionSocket, sendCommand, SocketCommandError, type SessionSocket } from './sessionSocket';
+import { liveDeadlineAt } from '../lib/sessionTiming';
 import { isNewer, type ConnectionStatus, type HostSessionError } from './useHostSession';
 
 export const LAST_ROOM_KEY = 'profelink-last-room';
@@ -43,21 +44,26 @@ const MAX_AUTH_RETRIES = 3;
 export type AnswerStatus = 'sending' | 'sent' | 'error';
 
 export interface AnswerEntry {
-  choice?: boolean;
+  choice?: boolean | number;
   status: AnswerStatus;
   receipt?: AnswerReceipt;
   error?: { code: string; message: string };
 }
 
 export type AnswerAction =
-  | { type: 'sending'; choice: boolean }
+  | { type: 'sending'; choice: boolean | number }
   | { type: 'ok'; receipt: AnswerReceipt }
-  | { type: 'error'; code: string; message: string; choice?: boolean };
+  | { type: 'error'; code: string; message: string; choice?: boolean | number };
 
 /** Reduce el estado local de una respuesta según el ack del servidor. */
 export function reduceAnswer(current: AnswerEntry | undefined, action: AnswerAction): AnswerEntry {
   if (action.type === 'sending') return { choice: action.choice, status: 'sending' };
-  if (action.type === 'ok') return { choice: action.receipt.choice, status: 'sent', receipt: action.receipt };
+  if (action.type === 'ok')
+    return {
+      choice: action.receipt.choiceIndex ?? action.receipt.choice,
+      status: 'sent',
+      receipt: action.receipt,
+    };
   if (action.code === 'ANSWER_ALREADY_SUBMITTED') {
     return { choice: current?.choice, status: 'sent', error: { code: action.code, message: action.message } };
   }
@@ -98,7 +104,7 @@ export function useParticipantSession(code: string) {
     sessionIdRef.current = next.sessionId;
     roomRef.current = next;
     setRoom(next);
-    setDeadline(next.remainingMs > 0 ? Date.now() + next.remainingMs : null);
+    setDeadline(liveDeadlineAt(next));
   }, []);
 
   useEffect(() => {
@@ -203,7 +209,44 @@ export function useParticipantSession(code: string) {
     };
   }, [normalized, apply, getToken]);
 
-  const submitAnswer = useCallback(async (choice: boolean) => {
+  // Si se pierde el evento de la siguiente pregunta, recupera el estado al vencer la revisión.
+  useEffect(() => {
+    const question = room?.state.currentQuestion;
+    if (!question || question.status !== 'CLOSED' || room.state.status !== 'IN_PROGRESS') return;
+    let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const wait = Math.max(0, (deadline ?? Date.now()) - Date.now()) + 400;
+    const pull = async () => {
+      if (cancelled) return;
+      const current = roomRef.current?.state.currentQuestion;
+      if (!current || current.id !== question.id || current.status !== 'CLOSED') return;
+      try {
+        const socket = socketRef.current;
+        if (socket?.connected) {
+          const result = await sendCommand<RealtimeJoinResult>(socket, 'room:join', { code: normalized });
+          if (!cancelled) {
+            setMe(result.participant);
+            apply(result.room);
+          }
+        } else {
+          apply(await api.sessions.stateByCode(normalized));
+        }
+      } catch {
+        /* se reintenta */
+      }
+      if (!cancelled && roomRef.current?.state.currentQuestion?.id === question.id && roomRef.current.state.currentQuestion.status === 'CLOSED') {
+        retry = setTimeout(() => void pull(), 1000);
+      }
+    };
+    const timer = setTimeout(() => void pull(), wait);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      clearTimeout(retry);
+    };
+  }, [api, apply, deadline, normalized, room?.state.currentQuestion?.id, room?.state.currentQuestion?.status, room?.state.status]);
+
+  const submitAnswer = useCallback(async (choice: boolean | number) => {
     const socket = socketRef.current;
     const q = roomRef.current?.state.currentQuestion;
     if (!socket || !q || q.status !== 'OPEN') return false;
@@ -219,8 +262,12 @@ export function useParticipantSession(code: string) {
     if (skipped) return false;
     setBusy('answer:submit');
     setCommandError(null);
+    const payload =
+      typeof choice === 'number'
+        ? { sessionQuestionId: q.id, choiceIndex: choice }
+        : { sessionQuestionId: q.id, choice };
     try {
-      const data = await sendCommand<{ answer: AnswerReceipt }>(socket, 'answer:submit', { sessionQuestionId: q.id, choice });
+      const data = await sendCommand<{ answer: AnswerReceipt }>(socket, 'answer:submit', payload);
       setAnswers((prev) => ({ ...prev, [q.id]: reduceAnswer(prev[q.id], { type: 'ok', receipt: data.answer }) }));
       return true;
     } catch (err) {

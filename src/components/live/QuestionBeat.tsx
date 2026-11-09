@@ -38,6 +38,10 @@ export function QuestionBeat({
   const [stage, setStage] = useState<ReviewStage>(() => (reviewing ? (resultHoldMs > 0 ? 'result' : 'ranking') : 'live'));
 
   useEffect(() => {
+    setIntro(!skipIntro && index > 0 && !reviewing && holdMs(NEXT_QUESTION_HOLD_MS) > 0);
+  }, [index, skipIntro, reviewing]);
+
+  useEffect(() => {
     if (!intro) return;
     const id = window.setTimeout(() => setIntro(false), holdMs(NEXT_QUESTION_HOLD_MS));
     return () => window.clearTimeout(id);

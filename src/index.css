@@ -610,3 +610,66 @@ body {
   .pl-owl-layer-b { display: none; }
 }
 
+.math-text .katex {
+  font-size: 1.35em;
+}
+
+.math-text .katex-inline {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  vertical-align: middle;
+}
+
+.pl-math-field {
+  --hue: 214;
+  --caret-color: var(--pl-primary-strong);
+  --placeholder-color: var(--pl-muted);
+  --selection-color: #fff;
+  --selection-background-color: var(--pl-primary-strong);
+  --contains-highlight-color: var(--pl-primary-strong);
+  --contains-highlight-background-color: color-mix(in srgb, var(--pl-primary) 32%, transparent);
+  background: transparent;
+  border: 0;
+  color: var(--pl-fg);
+  cursor: text;
+  box-sizing: border-box;
+  font-size: 2.15rem;
+  min-height: 6.25rem;
+  overflow: visible;
+  padding: 1.15rem 2.25rem;
+  user-select: text;
+  -webkit-user-select: text;
+  width: 100%;
+}
+.dark .pl-math-field {
+  --caret-color: #38bdf8;
+  --selection-color: #041018;
+  --selection-background-color: #38bdf8;
+  --contains-highlight-color: #38bdf8;
+  --contains-highlight-background-color: color-mix(in srgb, #38bdf8 48%, transparent);
+}
+.pl-math-field:focus,
+.pl-math-field:focus-within {
+  outline: none;
+}
+.pl-math-field::part(virtual-keyboard-toggle),
+.pl-math-field::part(menu-toggle) {
+  display: none;
+}
+
+.pl-math-key {
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+}
+.pl-math-key .katex {
+  font-size: 0.82rem;
+  color: inherit;
+}
+.pl-math-key .katex-html {
+  white-space: nowrap;
+}
+

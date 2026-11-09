@@ -1,8 +1,22 @@
 import { X } from 'lucide-react';
 import { useEffect, useId, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '../../lib/cn';
 
-/** Modal accesible con cierre por Escape y por fondo. */
-export function Modal({ open, title, onClose, children }: { open: boolean; title: string; onClose(): void; children: ReactNode }) {
+/** Modal accesible: se cierra con Escape, la X o Cancelar; no con clic en el fondo. */
+export function Modal({
+  open,
+  title,
+  onClose,
+  size = 'md',
+  children,
+}: {
+  open: boolean;
+  title: string;
+  onClose(): void;
+  size?: 'md' | 'lg' | 'xl' | '2xl';
+  children: ReactNode;
+}) {
   const id = useId();
   useEffect(() => {
     if (!open) return;
@@ -16,12 +30,20 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <button type="button" aria-label="Cerrar" tabIndex={-1} className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby={id} className="pl-pop relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-line bg-surface p-6 sm:max-w-lg sm:rounded-3xl">
-        <div className="mb-4 flex items-start justify-between gap-4">
+  if (!open || typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
+      <div data-testid="modal-backdrop" className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={id}
+        className={cn(
+          'pl-pop relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-surface p-5 sm:rounded-3xl sm:p-6',
+          size === '2xl' ? 'sm:max-w-6xl' : size === 'xl' ? 'sm:max-w-4xl' : size === 'lg' ? 'sm:max-w-2xl' : 'sm:max-w-lg',
+        )}
+      >
+        <div className="mb-4 flex shrink-0 items-start justify-between gap-4">
           <h2 id={id} className="text-xl font-bold">
             {title}
           </h2>
@@ -29,8 +51,9 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
             <X className="h-5 w-5" />
           </button>
         </div>
-        {children}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
