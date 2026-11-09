@@ -5,6 +5,7 @@ import type {
   CreateQuizInput,
   CreateSessionInput,
   JoinSessionResult,
+  OwlAvatarId,
   PlayedSessionItem,
   Profile,
   Question,
@@ -30,7 +31,7 @@ export function createApi(http: HttpClient) {
     },
     profiles: {
       me: () => http.get<Profile>('/profiles/me'),
-      update: (displayName: string) => http.patch<Profile>('/profiles/me', { displayName }),
+      update: (input: { displayName: string; avatarId?: OwlAvatarId }) => http.patch<Profile>('/profiles/me', input),
     },
     quizzes: {
       list: () => http.get<QuizSummary[]>('/quizzes'),

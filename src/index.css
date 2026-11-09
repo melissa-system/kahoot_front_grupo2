@@ -621,6 +621,32 @@ body {
   vertical-align: middle;
 }
 
+.math-mix-chip {
+  display: inline-flex;
+  max-width: 100%;
+  flex-shrink: 0;
+  cursor: text;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--pl-fg) 72%, transparent);
+  border-radius: 4px;
+  background: var(--pl-surface);
+  padding: 0.12rem 0.4rem 0.08rem;
+  line-height: 1;
+  color: var(--pl-fg);
+}
+
+.math-mix-chip .katex,
+.math-mix-chip math-span {
+  font-size: 1.2em;
+}
+
+.math-mix-chip .katex-inline {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  vertical-align: baseline;
+}
+
 .pl-math-field {
   --hue: 214;
   --caret-color: var(--pl-primary-strong);

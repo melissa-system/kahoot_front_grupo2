@@ -12,7 +12,7 @@ interface FieldShellProps {
   children: ReactNode;
 }
 
-function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
+export function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="block text-sm font-medium text-fg">
@@ -53,7 +53,7 @@ export const TextField = forwardRef<HTMLInputElement, InputProps>(function TextF
           id={fieldId}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined}
-          className={cn(base, 'h-11', leading && 'pl-11', error ? 'border-danger' : 'border-line', className)}
+          className={cn(base, 'h-11', leading ? 'pl-11' : undefined, error ? 'border-danger' : 'border-line', className)}
           {...rest}
         />
       </div>

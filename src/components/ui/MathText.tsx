@@ -1,3 +1,4 @@
+import type { PointerEventHandler } from 'react';
 import katex from 'katex';
 import { previewMathLatex, splitMath } from '../../lib/mathEquation';
 import { cn } from '../../lib/cn';
@@ -22,6 +23,23 @@ export function MathText({ text, className }: { text: string; className?: string
           <span key={index}>{chunk.value}</span>
         ),
       )}
+    </span>
+  );
+}
+
+/** Fórmula insertada en el enunciado: bloque compacto estilo objeto matemático. */
+export function MathEquationChip({
+  latex,
+  className,
+  onPointerDown,
+}: {
+  latex: string;
+  className?: string;
+  onPointerDown?: PointerEventHandler<HTMLSpanElement>;
+}) {
+  return (
+    <span className={cn('math-mix-chip', className)} onPointerDown={onPointerDown}>
+      <span className="katex-inline" dangerouslySetInnerHTML={{ __html: renderMath(latex) }} />
     </span>
   );
 }

@@ -19,6 +19,7 @@ import type {
   SessionState,
 } from '../types';
 import { SESSION_CODE_PATTERN } from '../types';
+import { OWL_AVATAR_IDS, parseOwlAvatarId, type OwlAvatarId } from '../../lib/owlAvatar';
 import { isCorrectChoice, questionKindOf } from '../../lib/questionKind';
 import { db, uuid } from './mockDb';
 
@@ -246,6 +247,7 @@ function startBots(room: Room) {
         sessionId: room.state.id,
         userId: `bot-${i}`,
         displayName: name,
+        avatarId: OWL_AVATAR_IDS[(i + 1) % OWL_AVATAR_IDS.length],
         joinedAt: new Date().toISOString(),
       };
       room.state.participants.push(participant);
@@ -297,6 +299,7 @@ function historyItem(room: Room): SessionHistoryItem {
   const ranking = (room.state.results ?? scoreboard(room)).map((row) => ({
     ...row,
     displayName: room.state.participants.find((p) => p.id === row.participantId)?.displayName ?? 'Participante',
+    avatarId: parseOwlAvatarId(room.state.participants.find((p) => p.id === row.participantId)?.avatarId),
   }));
   const winner = ranking.find((row) => row.rank === 1) ?? null;
   const names = new Map(room.state.participants.map((p) => [p.id, p.displayName]));
@@ -455,7 +458,7 @@ export const mockGame = {
       code?: string;
       finishedAt?: string;
       questions: Question[];
-      players: Array<{ userId?: string; displayName: string; choices: Array<boolean | number> }>;
+      players: Array<{ userId?: string; displayName: string; avatarId?: OwlAvatarId; choices: Array<boolean | number> }>;
     },
   ): SessionHistoryItem {
     const state = putRoom(hostId, options.quizTitle, structuredClone(options.questions), 15, 5, options.code);
@@ -466,6 +469,9 @@ export const mockGame = {
         sessionId: state.id,
         userId: player.userId ?? `hist-${uuid()}`,
         displayName: player.displayName,
+        avatarId: player.avatarId
+          ? parseOwlAvatarId(player.avatarId)
+          : OWL_AVATAR_IDS[room.state.participants.length % OWL_AVATAR_IDS.length],
         joinedAt: options.finishedAt ?? new Date().toISOString(),
       };
       room.state.participants.push(participant);
@@ -609,7 +615,7 @@ export const mockGame = {
     return envelope(room);
   },
 
-  join(code: string, user: { id: string; displayName: string }): JoinSessionResult {
+  join(code: string, user: { id: string; displayName: string; avatarId?: OwlAvatarId }): JoinSessionResult {
     const normalized = code.trim().toUpperCase();
     if (!SESSION_CODE_PATTERN.test(normalized)) throw err('VALIDATION_ERROR', 'Los datos de la solicitud no son válidos');
     if (normalized === DEMO_ROOM_CODE) this.ensureDemoRoom();
@@ -631,6 +637,7 @@ export const mockGame = {
       sessionId: room.state.id,
       userId: user.id,
       displayName: user.displayName,
+      avatarId: parseOwlAvatarId(user.avatarId ?? db().profiles.find((p) => p.userId === user.id)?.avatarId),
       joinedAt: new Date().toISOString(),
     };
     room.state.participants.push(participant);
@@ -650,7 +657,11 @@ export const mockGame = {
   },
 
   joinRealtime(code: string, userId: string, listener: Listener): RealtimeJoinResult {
-    const { participant, session } = this.join(code, { id: userId, displayName: displayNameOf(userId) });
+    const { participant, session } = this.join(code, {
+      id: userId,
+      displayName: displayNameOf(userId),
+      avatarId: parseOwlAvatarId(db().profiles.find((p) => p.userId === userId)?.avatarId),
+    });
     const room = this.subscribe(session.id, userId, listener);
     return { participant, room };
   },
@@ -750,7 +761,14 @@ export const mockGame = {
   /** Solo pruebas: agrega un participante manualmente. */
   addParticipant(sessionId: string, displayName: string): ParticipantView {
     const room = getRoom(sessionId);
-    const participant = { id: uuid(), sessionId, userId: `bot-${uuid()}`, displayName, joinedAt: new Date().toISOString() };
+    const participant = {
+      id: uuid(),
+      sessionId,
+      userId: `bot-${uuid()}`,
+      displayName,
+      avatarId: OWL_AVATAR_IDS[room.state.participants.length % OWL_AVATAR_IDS.length],
+      joinedAt: new Date().toISOString(),
+    };
     room.state.participants.push(participant);
     broadcast(room, 'room:state');
     return participant;

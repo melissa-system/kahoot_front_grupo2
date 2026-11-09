@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertLatexSnippet, interpretMathInput, interpretMathTyping, isPlaceholderSelection, mathLiveToLatex, pickHitSlot, previewMathLatex, splitMath, toMathLiveSnippet, wrapInlineMath } from './mathEquation';
+import { compactDisplayLatex, insertLatexSnippet, interpretMathInput, interpretMathTyping, isPlaceholderSelection, joinMath, mathLiveToLatex, padMathChunks, pickHitSlot, previewMathLatex, splitMath, toMathLiveSnippet, wrapInlineMath } from './mathEquation';
 
 describe('fórmulas', () => {
   it('envuelve LaTeX para insertarlo en el enunciado', () => {
@@ -54,6 +54,12 @@ describe('fórmulas', () => {
       { type: 'math', value: '\\pi r^{2}' },
       { type: 'text', value: ' cm' },
     ]);
+    expect(joinMath(splitMath('Área $\\pi r^{2}$ cm'))).toBe('Área $\\pi r^{2}$ cm');
+    expect(padMathChunks(splitMath('$\\pi$'))).toEqual([
+      { type: 'text', value: '' },
+      { type: 'math', value: '\\pi' },
+      { type: 'text', value: '' },
+    ]);
   });
 
   it('interpreta símbolos y atajos como LaTeX', () => {
@@ -78,7 +84,11 @@ describe('fórmulas', () => {
     expect(interpretMathInput('\\sqrt[3]{8}')).toBe('\\sqrt[3]{8}');
     expect(previewMathLatex('\\sqrt[3]{}')).toBe('\\sqrt[3]{\\square}');
     expect(previewMathLatex('\\sqrt[3]{8}')).toBe('\\sqrt[3]{8}');
-    expect(previewMathLatex('\\int_{}^{}\\,{}')).toBe('\\int_{\\square}^{\\square}\\,{\\square}');
+    expect(compactDisplayLatex('\\int_{}^{}e^{x}')).toBe('\\int e^{x}');
+    expect(compactDisplayLatex('\\int_{}^{}\\,{}')).toBe('\\int');
+    expect(compactDisplayLatex('\\int_{0}^{1}e^{x}')).toBe('\\int_{0}^{1}e^{x}');
+    expect(previewMathLatex('\\int_{}^{}\\,{}')).toBe('\\int');
+    expect(previewMathLatex('\\int_{}^{}e^{x}')).toBe('\\int e^{x}');
     expect(previewMathLatex('{}^{2}')).toBe('{\\square}^{2}');
   });
 });

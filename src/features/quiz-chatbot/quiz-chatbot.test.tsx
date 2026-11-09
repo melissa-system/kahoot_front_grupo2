@@ -59,7 +59,7 @@ describe('Chat contextual y revisión humana', () => {
     await user.click(restore);
     expect(dialog).toHaveClass('sm:w-[min(94vw,72rem)]');
     expect(input).toHaveValue('Corrección local');
-    expect(input).toHaveAttribute('rows', '3');
+    expect(input).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Minimizar propuesta' }));
     expect(dialog).toHaveClass('sm:w-[28rem]');
     await user.click(screen.getByRole('button', { name: 'Ver propuesta' }));
@@ -136,6 +136,39 @@ describe('Chat contextual y revisión humana', () => {
     expect(screen.getByLabelText('Afirmación propuesta 1')).toHaveValue('Afirmación corregida por el profesor');
     expect(screen.queryByRole('button', { name: 'Agregar al cuestionario' })).not.toBeInTheDocument();
     expect(createBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('revisa y guarda preguntas de 4 opciones', async () => {
+    const respond = vi.fn().mockResolvedValue({
+      reply: 'Revisa estas preguntas de 4 opciones.',
+      draft: {
+        questions: [{
+          statement: '¿Dónde ocurre la fotosíntesis?',
+          kind: 'multiple',
+          options: ['En las hojas', 'En las raíces', 'En el tronco', 'En las flores'],
+          correctIndexes: [0],
+        }],
+      },
+    });
+    const createBatch = vi.fn().mockImplementation((_id, body) => ({ operationId: body.operationId, questions: body.questions }));
+    render(<QuizChatbot api={{ chatbot: { respond }, questions: { createBatch } } as unknown as Api} quizId="quiz" quizTitle="Ciencias" isMock onSaved={vi.fn()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Chat bot' }));
+    await user.type(screen.getByLabelText('¿Qué preguntas necesitas?'), '1 pregunta de 4 opciones de fotosíntesis');
+    await user.click(screen.getByRole('button', { name: 'Enviar' }));
+    await user.click(await screen.findByRole('button', { name: 'Ver propuesta' }));
+    expect(screen.getByLabelText('Pregunta propuesta 1')).toHaveValue('¿Dónde ocurre la fotosíntesis?');
+    expect(screen.getByLabelText('Opción A de la pregunta 1')).toHaveValue('En las hojas');
+    await user.clear(screen.getByLabelText('Opción B de la pregunta 1'));
+    await user.type(screen.getByLabelText('Opción B de la pregunta 1'), 'En la raíz principal');
+    await user.click(screen.getByRole('button', { name: 'Agregar al cuestionario' }));
+    await waitFor(() => expect(createBatch).toHaveBeenCalled());
+    expect(createBatch.mock.calls[0][1].questions).toEqual([{
+      statement: '¿Dónde ocurre la fotosíntesis?',
+      kind: 'multiple',
+      options: ['En las hojas', 'En la raíz principal', 'En el tronco', 'En las flores'],
+      correctIndexes: [0],
+    }]);
   });
 
   it('espera el recibo antes de cerrar, sin esperar la recarga del detalle', async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Api } from '../../api/client';
 import type { DraftQuestion, QuestionBatchRequest } from '../../api/chatbot.types';
+import { toDraftPayload, validateDraftQuestion } from '../../lib/draftQuestion';
 import { ApiError } from '../../lib/http';
 import { chatErrorMessage } from './chat-errors';
 
@@ -57,8 +58,8 @@ export function useQuestionBatch(api: Api, quizId: string, onSaved: () => Promis
 
   function save(questions: DraftQuestion[]) {
     if (busy.current || state === 'saved' || uncertain || !questions.length || questions.length > 30) return;
-    const input = { operationId: crypto.randomUUID(), questions: questions.map(({ statement, correctBoolean }) => ({ statement: statement.trim(), correctBoolean })) };
-    if (input.questions.some((q) => !q.statement || q.statement.length > 500 || typeof q.correctBoolean !== 'boolean')) return;
+    const input = { operationId: crypto.randomUUID(), questions: questions.map(toDraftPayload) };
+    if (input.questions.some((q) => validateDraftQuestion(q))) return;
     snapshot.current = input;
     void execute(input);
   }

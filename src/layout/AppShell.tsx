@@ -7,6 +7,7 @@ import { isTeacher } from '../auth/roles';
 import { useAuth } from '../auth/useAuth';
 import { cn } from '../lib/cn';
 import { useTheme } from '../theme/ThemeProvider';
+import { OwlAvatar } from '../components/ui/OwlAvatar';
 import { Brand } from './Brand';
 import { COURSE } from './course';
 import { isLiveSessionPath } from './liveSession';
@@ -37,7 +38,7 @@ function navSections(teacher: boolean): Array<{ title: string; items: NavItem[] 
             { to: '/app/resultados', label: 'Mis resultados', hint: 'Puesto y puntaje', icon: Trophy },
           ],
     },
-    { title: 'Mi cuenta', items: [{ to: '/app/perfil', label: 'Mi perfil', hint: 'Nombre visible', icon: User }] },
+    { title: 'Mi cuenta', items: [{ to: '/app/perfil', label: 'Mi perfil', hint: 'Nombre y avatar', icon: User }] },
   ];
 }
 
@@ -101,11 +102,10 @@ function SidebarContent({ onNavigate, onCollapse }: { onNavigate?: () => void; o
 }
 
 function UserMenu() {
-  const { displayName, session, signOut, isMock } = useAuth();
+  const { displayName, session, profile, signOut, isMock } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const initial = (displayName || session?.user.email || '?').charAt(0).toUpperCase();
 
   useEffect(() => {
     if (!open) return;
@@ -129,16 +129,19 @@ function UserMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
-        className="grid h-12 w-12 place-items-center rounded-full bg-[#93c5fd] text-lg font-bold text-[#1e3a8a] ring-2 ring-transparent hover:ring-primary"
+        className="overflow-hidden rounded-full ring-2 ring-transparent hover:ring-primary"
       >
-        {initial}
+        <OwlAvatar id={profile?.avatarId} name={displayName} size="md" />
       </button>
       {open && (
         <div role="menu" className="pl-pop absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
-          <div className="border-b border-line px-4 py-3">
-            <p className="truncate font-semibold">{displayName}</p>
-            <p className="truncate text-sm text-muted">{session?.user.email}</p>
-            {isMock && <p className="mt-1 text-xs font-semibold text-warning">Modo demo (datos simulados)</p>}
+          <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+            <OwlAvatar id={profile?.avatarId} name={displayName} size="sm" />
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{displayName}</p>
+              <p className="truncate text-sm text-muted">{session?.user.email}</p>
+              {isMock && <p className="mt-1 text-xs font-semibold text-warning">Modo demo (datos simulados)</p>}
+            </div>
           </div>
           <button
             role="menuitem"

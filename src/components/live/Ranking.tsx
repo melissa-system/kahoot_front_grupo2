@@ -1,9 +1,14 @@
 import type { ParticipantView, SessionResultView } from '../../api/types';
 import coin from '../../assets/brand/taku-coin.png';
+import { OwlAvatar } from '../ui/OwlAvatar';
 import { cn } from '../../lib/cn';
 
+export function participantOf(participants: ParticipantView[], id: string) {
+  return participants.find((p) => p.id === id);
+}
+
 export function nameOf(participants: ParticipantView[], id: string) {
-  return participants.find((p) => p.id === id)?.displayName ?? 'Participante';
+  return participantOf(participants, id)?.displayName ?? 'Participante';
 }
 
 export function Ranking({
@@ -38,6 +43,11 @@ export function Ranking({
           >
             {r.rank}
           </span>
+          <OwlAvatar
+            id={participantOf(participants, r.participantId)?.avatarId}
+            name={nameOf(participants, r.participantId)}
+            size="sm"
+          />
           <span className="min-w-0 flex-1 truncate font-semibold">
             {nameOf(participants, r.participantId)}
             {highlightId === r.participantId ? ' (tú)' : ''}

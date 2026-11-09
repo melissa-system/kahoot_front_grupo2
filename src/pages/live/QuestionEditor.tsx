@@ -3,10 +3,8 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { IMAGE_RULES, QUESTION_DURATION, QUESTION_DURATION_PRESETS, type Question, type QuestionKind } from '../../api/types';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { TextAreaField } from '../../components/ui/Field';
 import { MathEquationDialog } from '../../components/ui/MathEquationDialog';
-import { FormulaPreview } from '../../components/ui/MathText';
-import { insertTextAtSelection } from '../../lib/insertAtCursor';
+import { MathMixField, type MathMixHandle } from '../../components/ui/MathMixField';
 import { wrapInlineMath } from '../../lib/mathEquation';
 import { validateImageFile } from '../../lib/image';
 import { cn } from '../../lib/cn';
@@ -66,35 +64,18 @@ export function QuestionEditor({ initial, submitLabel, onSubmit, onCancel }: Pro
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const statementRef = useRef<HTMLTextAreaElement>(null);
-  const optionRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const statementRef = useRef<MathMixHandle>(null);
+  const optionRefs = useRef<Array<MathMixHandle | null>>([]);
   const [activeField, setActiveField] = useState<'statement' | number>('statement');
   const [equationOpen, setEquationOpen] = useState(false);
   const groupId = useId();
 
   function insertSymbol(symbol: string) {
     if (kind === 'multiple' && typeof activeField === 'number') {
-      const el = optionRefs.current[activeField];
-      const current = options[activeField] ?? '';
-      const start = el?.selectionStart ?? current.length;
-      const end = el?.selectionEnd ?? start;
-      const next = insertTextAtSelection(current, symbol, start, end, OPTION_MAX_LENGTH);
-      setOptions((list) => list.map((item, i) => (i === activeField ? next.value : item)));
-      requestAnimationFrame(() => {
-        el?.focus();
-        el?.setSelectionRange(next.caret, next.caret);
-      });
+      optionRefs.current[activeField]?.insert(symbol, OPTION_MAX_LENGTH);
       return;
     }
-    const el = statementRef.current;
-    const start = el?.selectionStart ?? statement.length;
-    const end = el?.selectionEnd ?? start;
-    const next = insertTextAtSelection(statement, symbol, start, end, 500);
-    setStatement(next.value);
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(next.caret, next.caret);
-    });
+    statementRef.current?.insert(symbol, 500);
   }
 
   useEffect(() => {
@@ -217,7 +198,7 @@ export function QuestionEditor({ initial, submitLabel, onSubmit, onCancel }: Pro
         onInsert={(latex) => insertSymbol(wrapInlineMath(latex))}
       />
 
-      <TextAreaField
+      <MathMixField
         ref={statementRef}
         label={kind === 'multiple' ? 'Pregunta' : 'Afirmación'}
         placeholder={
@@ -226,12 +207,11 @@ export function QuestionEditor({ initial, submitLabel, onSubmit, onCancel }: Pro
         value={statement}
         maxLength={500}
         onFocus={() => setActiveField('statement')}
-        onChange={(e) => setStatement(e.target.value)}
+        onChange={setStatement}
         error={errors.statement}
         hint={`${statement.trim().length}/500`}
-        className="min-h-20"
+        testId="question-statement"
       />
-      <FormulaPreview text={statement} />
 
       {kind === 'boolean' ? (
         <fieldset aria-describedby={errors.answer ? `${groupId}-err` : undefined}>
@@ -304,7 +284,7 @@ export function QuestionEditor({ initial, submitLabel, onSubmit, onCancel }: Pro
                       Correcta
                     </label>
                   </div>
-                  <input
+                  <MathMixField
                     ref={(node) => {
                       optionRefs.current[index] = node;
                     }}
@@ -312,11 +292,12 @@ export function QuestionEditor({ initial, submitLabel, onSubmit, onCancel }: Pro
                     value={option}
                     maxLength={OPTION_MAX_LENGTH}
                     onFocus={() => setActiveField(index)}
-                    onChange={(e) => setOptions((current) => current.map((item, i) => (i === index ? e.target.value : item)))}
+                    onChange={(next) => setOptions((current) => current.map((item, i) => (i === index ? next : item)))}
                     placeholder={`Respuesta ${tone.key}`}
-                    className="h-11 w-full rounded-lg border-0 bg-bg/80 px-3 text-sm text-fg outline-none placeholder:text-muted focus:ring-2 focus:ring-white/40"
+                    variant="line"
+                    className="rounded-lg border-0 bg-bg/80 focus-within:ring-2 focus-within:ring-white/40"
+                    testId={`question-option-${tone.key}`}
                   />
-                  <FormulaPreview text={option} className="mt-2" />
                 </div>
               );
             })}

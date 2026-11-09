@@ -2,6 +2,7 @@
  * Base de datos simulada para desarrollar sin Supabase ni API. Se guarda en
  * localStorage para sobrevivir recargas. SOLO se usa cuando env.useMocks = true.
  */
+import { DEFAULT_OWL_AVATAR_ID, parseOwlAvatarId } from '../../lib/owlAvatar';
 import type { Profile, Question, Quiz, UserRole } from '../types';
 
 export interface MockUser {
@@ -46,8 +47,8 @@ function seed(): MockData {
   return {
     users: [demo, student],
     profiles: [
-      { userId: demo.id, displayName: demo.displayName, role: 'teacher', createdAt: now, updatedAt: now },
-      { userId: student.id, displayName: student.displayName, role: 'student', createdAt: now, updatedAt: now },
+      { userId: demo.id, displayName: demo.displayName, avatarId: 'book', role: 'teacher', createdAt: now, updatedAt: now },
+      { userId: student.id, displayName: student.displayName, avatarId: 'gamer', role: 'student', createdAt: now, updatedAt: now },
     ],
     quizzes: [
       {
@@ -91,6 +92,7 @@ export function db(): MockData {
       cache = JSON.parse(stored) as MockData;
       cache.profiles = cache.profiles.map((profile) => ({
         ...profile,
+        avatarId: parseOwlAvatarId(profile.avatarId),
         role:
           profile.role === 'student' || profile.role === 'teacher'
             ? profile.role
@@ -130,6 +132,7 @@ export function db(): MockData {
         cache.profiles.push({
           userId: student.id,
           displayName: student.displayName,
+          avatarId: DEFAULT_OWL_AVATAR_ID,
           role: 'student',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

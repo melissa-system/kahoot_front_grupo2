@@ -18,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { HostSessionSkeleton } from '../../components/ui/Skeleton';
+import { OwlAvatar } from '../../components/ui/OwlAvatar';
 import { Spinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/useAuth';
@@ -92,7 +93,8 @@ function Lobby({ room, onStart, onCancel, busy }: { room: RoomEnvelope; onStart(
         ) : (
           <ul className="flex flex-wrap gap-2" aria-label="Lista de participantes">
             {state.participants.map((p) => (
-              <li key={p.id} className="pl-pop rounded-xl border border-line bg-surface-2 px-3 py-2 font-semibold">
+              <li key={p.id} className="pl-pop flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 font-semibold">
+                <OwlAvatar id={p.avatarId} name={p.displayName} size="xs" />
                 {p.displayName}
               </li>
             ))}

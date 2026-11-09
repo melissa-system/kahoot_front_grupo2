@@ -16,6 +16,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { OwlAvatar } from '../../components/ui/OwlAvatar';
 import { FullPageLoader } from '../../components/ui/Spinner';
 import { answeringWindowSeconds } from '../../lib/sessionTiming';
 import { useToast } from '../../components/ui/Toast';
@@ -59,10 +60,11 @@ function PlayerLobby({ room, meId, onLeave, busy }: { room: RoomEnvelope; meId?:
             <li
               key={p.id}
               className={cn(
-                'pl-pop rounded-xl border px-3 py-2 font-semibold',
+                'pl-pop flex items-center gap-2 rounded-xl border px-3 py-2 font-semibold',
                 p.id === meId ? 'border-primary bg-primary-soft text-primary' : 'border-line bg-surface-2',
               )}
             >
+              <OwlAvatar id={p.avatarId} name={p.displayName} size="xs" />
               {p.displayName}
               {p.id === meId ? ' (tú)' : ''}
             </li>
@@ -244,7 +246,7 @@ export function PlaySessionPage() {
   const raw = useParams().code ?? '';
   const code = normalizeSessionCode(raw);
   const navigate = useNavigate();
-  const { isMock, displayName } = useAuth();
+  const { isMock, displayName, profile } = useAuth();
   const toast = useToast();
   const play = useParticipantSession(code);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -317,7 +319,10 @@ export function PlaySessionPage() {
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary sm:text-sm">Jugando · {state.code}</p>
           <h1 className="truncate text-lg font-extrabold sm:text-3xl">{state.quizTitle}</h1>
-          <p className="hidden truncate text-muted sm:block">Jugando como {play.me?.displayName ?? displayName}</p>
+          <p className="hidden items-center gap-2 truncate text-muted sm:flex">
+            <OwlAvatar id={play.me?.avatarId ?? profile?.avatarId} name={play.me?.displayName ?? displayName} size="xs" />
+            Jugando como {play.me?.displayName ?? displayName}
+          </p>
         </div>
         {play.myRow && state.status !== 'WAITING' && (
           <p className="w-fit shrink-0 rounded-xl bg-surface-2 px-3 py-2 text-sm font-bold tabular-nums sm:px-4 sm:text-base">

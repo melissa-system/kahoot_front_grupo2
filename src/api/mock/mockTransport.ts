@@ -1,4 +1,5 @@
 import { ApiError, toApiError, type HttpTransport } from '../../lib/http';
+import { isOwlAvatarId, parseOwlAvatarId } from '../../lib/owlAvatar';
 import { IMAGE_RULES, QUESTION_DURATION, REVIEW_DURATION, type Question, type QuestionKind } from '../types';
 import { db, delay, save, userFromToken, uuid } from './mockDb';
 import { MockSessionError, mockGame, statusForSessionError } from './mockGame';
@@ -123,12 +124,16 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
   if (seg[0] === 'profiles' && seg[1] === 'me') {
     let profile = data.profiles.find((p) => p.userId === me.id);
     if (!profile) {
-      profile = { userId: me.id, displayName: me.displayName, role: me.role ?? 'student', createdAt: now, updatedAt: now };
+      profile = { userId: me.id, displayName: me.displayName, avatarId: 'book', role: me.role ?? 'student', createdAt: now, updatedAt: now };
       data.profiles.push(profile);
     }
     if (method === 'PATCH') {
       const name = typeof b.displayName === 'string' ? b.displayName.trim() : '';
       if (name.length < 2 || name.length > 40) fail(400, 'El nombre debe tener entre 2 y 40 caracteres');
+      if (b.avatarId !== undefined) {
+        if (!isOwlAvatarId(b.avatarId)) fail(400, 'El avatar no es válido');
+        profile.avatarId = parseOwlAvatarId(b.avatarId);
+      }
       profile.displayName = name;
       profile.updatedAt = now;
       me.displayName = name;
@@ -312,7 +317,12 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
     }
     if (method === 'POST' && seg[1] === 'join') {
       try {
-        return mockGame.join(String(b.code ?? ''), { id: me.id, displayName: me.displayName });
+        const meProfile = data.profiles.find((p) => p.userId === me.id);
+        return mockGame.join(String(b.code ?? ''), {
+          id: me.id,
+          displayName: me.displayName,
+          avatarId: meProfile?.avatarId,
+        });
       } catch (error) {
         if (error instanceof MockSessionError) fail(statusForSessionError(error.code), error.message, error.code);
         throw error;

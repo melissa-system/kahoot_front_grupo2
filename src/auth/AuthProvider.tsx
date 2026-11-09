@@ -2,7 +2,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState, type 
 import { createApi, type Api } from '../api/client';
 import { createMockAuth } from '../api/mock/mockAuth';
 import { mockTransport } from '../api/mock/mockTransport';
-import type { Profile } from '../api/types';
+import type { OwlAvatarId, Profile } from '../api/types';
 import { env } from '../config/env';
 import { HttpClient, fetchTransport } from '../lib/http';
 import { createSupabaseAuth } from './supabaseAuth';
@@ -26,7 +26,7 @@ export interface AuthContextValue {
   /** Sesión de recuperación (enlace del correo) o restablecimiento pendiente en demo. */
   canResetPassword: boolean;
   passwordRecovery: boolean;
-  updateDisplayName(name: string): Promise<void>;
+  updateProfile(input: { displayName: string; avatarId?: OwlAvatarId }): Promise<void>;
   getToken(): Promise<string | null>;
   api: Api;
 }
@@ -121,7 +121,7 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
         if (!created) return false;
         applySession(created);
         try {
-          setProfile(await api.profiles.update(displayName));
+          setProfile(await api.profiles.update({ displayName }));
         } catch {
           /* el perfil se puede corregir luego desde "Mi perfil" */
         }
@@ -145,8 +145,8 @@ export function AuthProvider({ children, adapter }: { children: ReactNode; adapt
       },
       canResetPassword: passwordRecovery || resetPending,
       passwordRecovery,
-      async updateDisplayName(name) {
-        setProfile(await api.profiles.update(name));
+      async updateProfile(input) {
+        setProfile(await api.profiles.update(input));
       },
     }),
     [status, session, profile, api, getToken, auth, applySession, passwordRecovery, resetPending],

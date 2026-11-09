@@ -25,7 +25,7 @@ describe('Editor del cuestionario', () => {
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Editar pregunta 1' })).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument();
-    expect(within(dialog).getByDisplayValue(db().questions[0].statement)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Afirmación')).toHaveValue(db().questions[0].statement);
   });
 
   it('ofrece un asa para reordenar cada pregunta', async () => {

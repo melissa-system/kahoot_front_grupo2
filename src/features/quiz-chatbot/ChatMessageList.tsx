@@ -23,8 +23,8 @@ export function ChatMessageList({ messages, pending }: { messages: ChatMessage[]
       className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
       {!messages.length && <div className="space-y-2 text-sm text-muted">
         <p className="font-semibold text-fg">¿Qué van a aprender hoy?</p>
-        <p>Indica un tema y cuántas preguntas necesitas, o pega tus afirmaciones. Después podrás revisar y corregir todo.</p>
-        <p className="text-xs">Por ejemplo: «10 preguntas de fotosíntesis para sexto grado».</p>
+        <p>Indica un tema, cuántas preguntas y si las quieres de verdadero/falso o de 4 opciones. También puedes pegar una lista. Después podrás revisar y corregir todo.</p>
+        <p className="text-xs">Por ejemplo: «8 preguntas de 4 opciones de fotosíntesis para sexto grado».</p>
       </div>}
       {messages.map((message, i) => <div key={i} className={message.role === 'user' ? 'ml-6 rounded-2xl bg-primary-soft p-3' : 'mr-3 rounded-2xl bg-surface-2 p-3'}>
         <p className="mb-1 text-xs font-semibold text-muted">{message.role === 'user' ? 'Tú' : 'ProfeLink'}</p>

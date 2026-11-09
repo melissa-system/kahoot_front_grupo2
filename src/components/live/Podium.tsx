@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ParticipantView, SessionResultView } from '../../api/types';
+import { OwlAvatar } from '../ui/OwlAvatar';
 import { cn } from '../../lib/cn';
 import { playSfx } from '../../lib/sfx';
 import { Confetti } from './Confetti';
-import { nameOf } from './Ranking';
+import { nameOf, participantOf } from './Ranking';
 
 export const PODIUM_STEP_MS = import.meta.env.MODE === 'test' ? 0 : 1500;
 export const PODIUM_FIRST_PAUSE_MS = import.meta.env.MODE === 'test' ? 0 : 500;
@@ -90,6 +91,7 @@ export function Podium({
               {visible ? (
                 <>
                   <span className="pl-podium-name text-[0.7rem] font-bold uppercase tracking-[0.14em] text-muted">{PLACE_LABEL[r.rank]}</span>
+                  <OwlAvatar id={participantOf(participants, r.participantId)?.avatarId} name={name} size="lg" />
                   <span className="pl-podium-name max-w-24 truncate font-bold">{name}</span>
                   <span className={cn('pl-podium', r.rank === 1 && 'pl-podium-first', barClass(r.rank))}>{r.rank}</span>
                   <span className="pl-podium-name text-sm font-semibold text-muted">{r.totalScore} pts</span>
@@ -97,6 +99,7 @@ export function Podium({
               ) : (
                 <>
                   <span className="h-4" />
+                  <span className="h-16 w-16" />
                   <span className="h-6" />
                   <span className={ghostClass(r.rank)} />
                   <span className="h-5" />

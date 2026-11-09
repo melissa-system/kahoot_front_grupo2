@@ -34,6 +34,7 @@ function rankingParticipants(item: SessionHistoryItem) {
     sessionId: item.id,
     userId: row.participantId,
     displayName: row.displayName,
+    avatarId: row.avatarId,
     joinedAt: item.finishedAt,
   }));
 }

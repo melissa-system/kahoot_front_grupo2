@@ -3,12 +3,16 @@
  * src/quizzes, src/profiles y src/sessions/session.contracts.ts del backend.
  */
 
+import type { OwlAvatarId } from '../lib/owlAvatar';
+
+export type { OwlAvatarId };
 export type UserRole = 'teacher' | 'student';
 export type QuestionKind = 'boolean' | 'multiple';
 
 export interface Profile {
   userId: string;
   displayName: string;
+  avatarId: OwlAvatarId;
   role: UserRole;
   createdAt: string;
   updatedAt: string;
@@ -90,6 +94,7 @@ export interface ParticipantView {
   sessionId: string;
   userId: string;
   displayName: string;
+  avatarId?: OwlAvatarId;
   joinedAt: string;
 }
 
@@ -201,6 +206,7 @@ export interface JoinSessionResult {
 export interface SessionHistoryRankingRow {
   participantId: string;
   displayName: string;
+  avatarId?: OwlAvatarId;
   totalScore: number;
   rank: number;
 }

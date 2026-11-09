@@ -49,7 +49,7 @@ export function createMockAuth(): AuthAdapter {
       const user: MockUser = { id: uuid(), email: email.trim(), password, displayName, role };
       data.users.push(user);
       const now = new Date().toISOString();
-      data.profiles.push({ userId: user.id, displayName, role, createdAt: now, updatedAt: now });
+      data.profiles.push({ userId: user.id, displayName, avatarId: 'book', role, createdAt: now, updatedAt: now });
       save();
       const session = toSession(user);
       persist(session.accessToken);

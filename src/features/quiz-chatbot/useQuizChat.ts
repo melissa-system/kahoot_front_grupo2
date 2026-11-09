@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Api } from '../../api/client';
 import type { ChatMessage, DraftQuestion, QuizChatRequest } from '../../api/chatbot.types';
+import { isDraftQuestion, toDraftPayload } from '../../lib/draftQuestion';
 import { chatErrorMessage } from './chat-errors';
 
 export interface ReviewQuestion extends DraftQuestion { key: string; selected: boolean }
@@ -30,7 +31,7 @@ export function useQuizChat(api: Api, quizId: string, onProposal: () => void = (
       if (!response || typeof response.reply !== 'string' || !response.reply.trim()) throw new Error('La respuesta no es válida. Puedes reintentar.');
       if (response.draft !== null) {
         const draft = response.draft?.questions;
-        if (!Array.isArray(draft) || draft.length < 1 || draft.length > 30 || draft.some((q) => typeof q.statement !== 'string' || !q.statement.trim() || q.statement.trim().length > 500 || typeof q.correctBoolean !== 'boolean')) throw new Error('La propuesta no es válida. Puedes reintentar.');
+        if (!Array.isArray(draft) || draft.length < 1 || draft.length > 30 || draft.some((q) => !isDraftQuestion(q))) throw new Error('La propuesta no es válida. Puedes reintentar.');
         setQuestions(review(draft));
         onProposal();
       }
@@ -48,7 +49,7 @@ export function useQuizChat(api: Api, quizId: string, onProposal: () => void = (
     if (busy.current || !text.trim()) return false;
     if (failed.current) { setError('Reintenta el turno pendiente o inicia una conversación nueva.'); return false; }
     const next: ChatMessage[] = [...messages, { role: 'user', content: text.trim() }];
-    const retained = questions.filter((q) => q.selected).map(({ statement, correctBoolean }) => ({ statement: statement.trim(), correctBoolean }));
+    const retained = questions.filter((q) => q.selected).map(toDraftPayload);
     const input: QuizChatRequest = { messages: next, ...(retained.length ? { currentDraft: { questions: retained } } : {}) };
     if (next.length > 39 || text.trim().length > 2000 || new TextEncoder().encode(JSON.stringify(input)).length > 96 * 1024) {
       setError('Llegaste al límite de conversación. Inicia una nueva; conservarás tu propuesta.');

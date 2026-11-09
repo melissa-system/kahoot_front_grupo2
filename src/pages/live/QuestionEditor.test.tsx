@@ -58,14 +58,15 @@ describe('Editor de preguntas', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Fórmula' }));
     await userEvent.click(screen.getByRole('button', { name: 'Insertar pi' }));
     await userEvent.click(screen.getByRole('button', { name: /^Añadir$/ }));
-    expect(statement).toHaveValue('$\\pi$');
+    expect(screen.getByTestId('question-statement')).toHaveValue('$\\pi$');
+    expect(document.querySelector('.katex')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: '4 opciones' }));
     const optionA = screen.getByLabelText('Opción A');
     await userEvent.click(optionA);
     await userEvent.click(screen.getByRole('button', { name: 'Fórmula' }));
     await userEvent.click(screen.getByRole('button', { name: 'Insertar al cuadrado' }));
     await userEvent.click(screen.getByRole('button', { name: /^Añadir$/ }));
-    expect(optionA).toHaveValue('${}^{2}$');
+    expect(screen.getByTestId('question-option-A')).toHaveValue('${}^{2}$');
   });
 
   it('separa el teclado de fórmulas en matemáticas y griego', async () => {

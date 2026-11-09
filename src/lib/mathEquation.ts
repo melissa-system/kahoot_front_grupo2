@@ -241,9 +241,26 @@ function mapPlainMath(segment: string): string {
   return s;
 }
 
-/** LaTeX para pintar la vista previa: huecos vacíos se ven como un recuadro. */
-export function previewMathLatex(raw: string): string {
+/**
+ * LaTeX para pintar una fórmula ya insertada: omite límites/huecos opcionales vacíos
+ * (como Docs: ∫ e^x, no ∫ con casillas de límites).
+ */
+export function compactDisplayLatex(raw: string): string {
   return interpretMathInput(raw)
+    .replace(/\\(int|oint|sum|prod|coprod)_{}\^{}/g, '\\$1 ')
+    .replace(/\\(int|oint|sum|prod|coprod)_{}/g, '\\$1 ')
+    .replace(/\\(int|oint|sum|prod|coprod)\^{}/g, '\\$1 ')
+    .replace(/\\lim_{}/g, '\\lim ')
+    .replace(/\\,\{\}/g, '')
+    .replace(/\\(int|oint|sum|prod|coprod)\{\}/g, '\\$1')
+    .replace(/\\(int|oint|sum|prod|coprod) \\,/g, '\\$1 ')
+    .replace(/  +/g, ' ')
+    .trim();
+}
+
+/** LaTeX para pintar: huecos obligatorios vacíos se ven como un recuadro. */
+export function previewMathLatex(raw: string): string {
+  return compactDisplayLatex(raw)
     .replace(/\\sqrt\[([^\]]*)\]\{\}/g, '\\sqrt[$1]{\\square}')
     .replace(/\\sqrt\{\}/g, '\\sqrt{\\square}')
     .replace(/\\frac\{\}\{\}/g, '\\frac{\\square}{\\square}')
@@ -312,6 +329,18 @@ export function splitMath(text: string): MathChunk[] {
   }
   if (last < text.length) chunks.push({ type: 'text', value: text.slice(last) });
   return chunks.length ? chunks : [{ type: 'text', value: text }];
+}
+
+export function joinMath(chunks: MathChunk[]): string {
+  return chunks.map((chunk) => (chunk.type === 'math' ? `$${chunk.value}$` : chunk.value)).join('');
+}
+
+/** Huecos de texto al inicio y al final para poder escribir antes o después de una fórmula. */
+export function padMathChunks(chunks: MathChunk[]): MathChunk[] {
+  const out = chunks.length ? [...chunks] : [{ type: 'text' as const, value: '' }];
+  if (out[0].type !== 'text') out.unshift({ type: 'text', value: '' });
+  if (out[out.length - 1].type !== 'text') out.push({ type: 'text', value: '' });
+  return out;
 }
 
 /** Barra superior: aritmética, paréntesis y constantes, con hueco entre grupos. */

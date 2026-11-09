@@ -1,6 +1,12 @@
 import type { Question } from './types';
 
-export interface DraftQuestion { statement: string; correctBoolean: boolean }
+export interface DraftQuestion {
+  statement: string;
+  kind?: 'boolean' | 'multiple';
+  correctBoolean?: boolean;
+  options?: string[];
+  correctIndexes?: number[];
+}
 export interface QuestionProposal { questions: DraftQuestion[] }
 export interface ChatMessage { role: 'user' | 'assistant'; content: string }
 export interface QuizChatRequest {
