@@ -26,6 +26,7 @@ function renderAuth(route: string) {
               </Route>
               <Route element={<ProtectedRoute />}>
                 <Route path="/app/evaluaciones" element={<p>Zona privada</p>} />
+                <Route path="/app/curso" element={<p>Zona privada</p>} />
               </Route>
             </Routes>
           </MemoryRouter>

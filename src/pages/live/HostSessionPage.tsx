@@ -1,4 +1,5 @@
 import { Check, Copy, Flag, Play, SkipForward, Trophy, Users, X } from 'lucide-react';
+import QRCode from 'qrcode';
 import { ChoiceBoard } from '../../components/live/ChoiceBoard';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -18,7 +19,8 @@ import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { HostSessionSkeleton } from '../../components/ui/Skeleton';
-import { OwlAvatar } from '../../components/ui/OwlAvatar';
+import { AvatarGroup } from '../../components/ui/avatar-group';
+import { owlAvatarSrc } from '../../lib/owlAvatar';
 import { Spinner } from '../../components/ui/Spinner';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../auth/useAuth';
@@ -28,6 +30,24 @@ import { correctLabel } from '../../lib/questionKind';
 import { activeQuestionBgm, questionBgmKind, useQuestionBgm } from '../../lib/sfx';
 import { useGameSfx } from '../../lib/useGameSfx';
 import { useCountdown, useHostSession } from '../../realtime/useHostSession';
+
+function useRoomQr(value: string) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(value, { margin: 1, width: 320, errorCorrectionLevel: 'M' })
+      .then((next) => {
+        if (alive) setUrl(next);
+      })
+      .catch(() => {
+        if (alive) setUrl(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [value]);
+  return url;
+}
 
 const FRIENDLY_COMMAND_ERRORS: Record<string, string> = {
   SESSION_HAS_NO_PARTICIPANTS: 'Espera a que al menos un estudiante se una para iniciar.',
@@ -44,6 +64,7 @@ function Lobby({ room, onStart, onCancel, busy }: { room: RoomEnvelope; onStart(
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const joinUrl = `${window.location.origin}/app/jugar?code=${state.code}`;
+  const qr = useRoomQr(joinUrl);
 
   async function copy() {
     try {
@@ -65,6 +86,13 @@ function Lobby({ room, onStart, onCancel, busy }: { room: RoomEnvelope; onStart(
             {state.code}
           </p>
         </div>
+        {qr && (
+          <img
+            src={qr}
+            alt={`Código QR para unirse a la sala ${state.code}`}
+            className="h-52 w-52 rounded-2xl border border-line bg-white p-2"
+          />
+        )}
         <div className="flex w-full max-w-md flex-col items-stretch gap-2 rounded-xl border border-line bg-surface-2 p-2 sm:flex-row sm:items-center">
           <span className="min-w-0 flex-1 truncate px-2 text-left text-sm text-muted">{joinUrl}</span>
           <Button size="sm" className="w-full sm:w-auto" variant="secondary" icon={copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} onClick={() => void copy()}>
@@ -91,14 +119,16 @@ function Lobby({ room, onStart, onCancel, busy }: { room: RoomEnvelope; onStart(
             <p>Esperando a que se unan los estudiantes…</p>
           </div>
         ) : (
-          <ul className="flex flex-wrap gap-2" aria-label="Lista de participantes">
-            {state.participants.map((p) => (
-              <li key={p.id} className="pl-pop flex items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 font-semibold">
-                <OwlAvatar id={p.avatarId} name={p.displayName} size="xs" />
-                {p.displayName}
-              </li>
-            ))}
-          </ul>
+          <AvatarGroup
+            avatars={state.participants.map((p) => ({
+              src: owlAvatarSrc(p.avatarId ?? 'book'),
+              alt: p.displayName,
+              label: p.displayName,
+            }))}
+            maxVisible={8}
+            size={52}
+            overlap={16}
+          />
         )}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <Button

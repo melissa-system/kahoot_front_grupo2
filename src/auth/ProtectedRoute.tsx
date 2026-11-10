@@ -21,7 +21,7 @@ export function GuestOnlyRoute() {
   if (status === 'loading' || (status === 'authenticated' && !profile)) return <AuthSkeleton />;
   if (status === 'authenticated') {
     const from = (location.state as { from?: string } | null)?.from;
-    const home = isStudent(profile) ? '/app/jugar' : '/app/evaluaciones';
+    const home = isStudent(profile) ? '/app/jugar' : '/app/curso';
     return <Navigate to={from && from.startsWith('/app') ? from : home} replace />;
   }
   return <Outlet />;
@@ -38,5 +38,5 @@ export function TeacherRoute() {
 export function AppHome() {
   const { profile } = useAuth();
   if (!profile) return <QuizListSkeleton />;
-  return <Navigate to={isTeacher(profile) ? 'evaluaciones' : 'jugar'} replace />;
+  return <Navigate to={isTeacher(profile) ? 'curso' : 'jugar'} replace />;
 }

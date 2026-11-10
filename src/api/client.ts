@@ -37,6 +37,7 @@ export function createApi(http: HttpClient) {
       list: () => http.get<QuizSummary[]>('/quizzes'),
       get: (id: string) => http.get<QuizDetail>(`/quizzes/${id}`),
       create: (input: CreateQuizInput) => http.post<Quiz>('/quizzes', input),
+      duplicate: (id: string) => http.post<Quiz>(`/quizzes/${id}/duplicate`),
       update: (id: string, input: UpdateQuizInput) => http.patch<Quiz>(`/quizzes/${id}`, input),
       remove: (id: string) => http.delete(`/quizzes/${id}`),
       uploadImage: (id: string, file: File) => {

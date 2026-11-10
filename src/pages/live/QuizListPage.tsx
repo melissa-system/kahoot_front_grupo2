@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Clock, FileQuestion, ImageIcon, Pencil, Play, Plus, Timer, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Copy, FileQuestion, ImageIcon, Pencil, Play, Plus, Timer, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { QuizSummary } from '../../api/types';
@@ -38,6 +38,7 @@ export function QuizListPage() {
   const [deleting, setDeleting] = useState(false);
   const [toTime, setToTime] = useState<QuizSummary | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -74,6 +75,19 @@ export function QuizListPage() {
     } catch (err) {
       toast.error(errorMessage(err));
       setPlayingId(null);
+    }
+  }
+
+  async function duplicateQuiz(quiz: QuizSummary) {
+    setCopyingId(quiz.id);
+    try {
+      const copy = await api.quizzes.duplicate(quiz.id);
+      toast.success(`Listo: ${copy.title}`);
+      await reload();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setCopyingId(null);
     }
   }
 
@@ -192,6 +206,16 @@ export function QuizListPage() {
                           </Button>
                           <Button size="sm" variant="secondary" icon={<Pencil className="h-4 w-4" />} onClick={() => navigate(`/app/evaluaciones/${quiz.id}`)}>
                             Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            icon={<Copy className="h-4 w-4" />}
+                            loading={copyingId === quiz.id}
+                            disabled={copyingId === quiz.id}
+                            onClick={() => void duplicateQuiz(quiz)}
+                          >
+                            Duplicar
                           </Button>
                           <Button size="sm" variant="ghost" aria-label={`Eliminar ${quiz.title}`} onClick={() => setToDelete(quiz)}>
                             <Trash2 className="h-4 w-4 text-danger" />

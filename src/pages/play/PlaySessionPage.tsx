@@ -2,7 +2,7 @@ import { LogOut, Trophy, Users, X } from 'lucide-react';
 import { ChoiceBoard } from '../../components/live/ChoiceBoard';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { isValidSessionCode, normalizeSessionCode, type RoomEnvelope } from '../../api/types';
+import { isValidSessionCode, normalizeSessionCode, type CurrentQuestionView, type RoomEnvelope } from '../../api/types';
 import coin from '../../assets/brand/taku-coin.png';
 import greeting from '../../assets/brand/pl-greeting.png';
 import { ConnectionBanner } from '../../components/live/ConnectionBanner';
@@ -16,7 +16,9 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { AvatarGroup } from '../../components/ui/avatar-group';
 import { OwlAvatar } from '../../components/ui/OwlAvatar';
+import { owlAvatarSrc } from '../../lib/owlAvatar';
 import { FullPageLoader } from '../../components/ui/Spinner';
 import { answeringWindowSeconds } from '../../lib/sessionTiming';
 import { useToast } from '../../components/ui/Toast';
@@ -55,36 +57,44 @@ function PlayerLobby({ room, meId, onLeave, busy }: { room: RoomEnvelope; meId?:
             {state.participants.length}
           </span>
         </div>
-        <ul className="flex flex-wrap gap-2" aria-label="Lista de participantes">
-          {state.participants.map((p) => (
-            <li
-              key={p.id}
-              className={cn(
-                'pl-pop flex items-center gap-2 rounded-xl border px-3 py-2 font-semibold',
-                p.id === meId ? 'border-primary bg-primary-soft text-primary' : 'border-line bg-surface-2',
-              )}
-            >
-              <OwlAvatar id={p.avatarId} name={p.displayName} size="xs" />
-              {p.displayName}
-              {p.id === meId ? ' (tú)' : ''}
-            </li>
-          ))}
-        </ul>
+        <AvatarGroup
+          avatars={state.participants.map((p) => ({
+            src: owlAvatarSrc(p.avatarId ?? 'book'),
+            alt: p.displayName,
+            label: p.id === meId ? `${p.displayName} (tú)` : p.displayName,
+          }))}
+          maxVisible={8}
+          size={52}
+          overlap={16}
+        />
       </Card>
     </div>
   );
+}
+
+function useAnswerStreak(question: CurrentQuestionView | null | undefined, choice: boolean | number | undefined) {
+  const [streak, setStreak] = useState(0);
+  const counted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!question || question.status !== 'CLOSED' || counted.current === question.id) return;
+    counted.current = question.id;
+    setStreak((current) => (isCorrectChoice(question, choice) ? current + 1 : 0));
+  }, [question, choice]);
+  return streak;
 }
 
 function PlayerQuestion({
   room,
   deadline,
   currentAnswer,
+  streak,
   onChoose,
   submitting,
 }: {
   room: RoomEnvelope;
   deadline: number | null;
   currentAnswer?: { choice?: boolean | number; status: string };
+  streak: number;
   onChoose(choice: boolean | number): void;
   submitting: boolean;
 }) {
@@ -157,6 +167,8 @@ function PlayerQuestion({
               <>
                 La correcta era <MathText text={correctLabel(q)} />
               </>
+            ) : streak > 1 ? (
+              `Racha de ${streak}: +${streak - 1} pts extra`
             ) : (
               'Sigue así'
             )}
@@ -252,6 +264,7 @@ export function PlaySessionPage() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const prevConnection = useRef(play.connection);
   const question = play.state?.currentQuestion;
+  const streak = useAnswerStreak(question, play.currentAnswer?.choice);
   useGameSfx({
     ready: !!play.room && !play.fatal,
     status: play.state?.status,
@@ -355,6 +368,7 @@ export function PlaySessionPage() {
                     room={room}
                     deadline={play.deadline}
                     currentAnswer={play.currentAnswer}
+                    streak={streak}
                     submitting={play.busy === 'answer:submit'}
                     onChoose={(choice) => void play.submitAnswer(choice)}
                   />

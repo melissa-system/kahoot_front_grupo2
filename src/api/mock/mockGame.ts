@@ -196,11 +196,27 @@ function openQuestion(room: Room, index: number) {
   later(room, seconds * 1000, () => closeQuestion(room, q.id));
 }
 
+function streakBonus(room: Room, participantId: string, questionId: string) {
+  const ordered = [...room.questions].sort((a, b) => a.position - b.position);
+  const index = ordered.findIndex((question) => question.id === questionId);
+  let streak = 1;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const previous = ordered[cursor];
+    const answer = (room.answers.get(previous.id) ?? []).find((item) => item.participantId === participantId);
+    if (!answer || !isCorrectChoice(previous, answer.choice)) break;
+    streak += 1;
+  }
+  return streak - 1;
+}
+
 function closeQuestion(room: Room, questionId: string, finishing = false) {
   const current = room.state.currentQuestion;
   if (!current || current.id !== questionId || current.status !== 'OPEN') return;
   const q = room.questions.find((x) => x.id === questionId)!;
-  for (const a of room.answers.get(questionId) ?? []) room.totals.set(a.participantId, (room.totals.get(a.participantId) ?? 0) + a.score);
+  for (const a of room.answers.get(questionId) ?? []) {
+    if (a.score > 0) a.score += streakBonus(room, a.participantId, questionId);
+    room.totals.set(a.participantId, (room.totals.get(a.participantId) ?? 0) + a.score);
+  }
   const closed = Date.now();
   room.state.currentQuestion = {
     ...current,

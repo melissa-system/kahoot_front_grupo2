@@ -24,7 +24,14 @@ interface NavItem {
 
 function navSections(teacher: boolean): Array<{ title: string; items: NavItem[] }> {
   return [
-    { title: 'Curso', items: [{ to: '/app/curso', label: 'Vista General', hint: 'Contenido del curso', icon: BookOpen }] },
+    {
+      title: 'Curso',
+      items: [
+        teacher
+          ? { to: '/app/curso', label: 'Tablero', hint: 'Resumen de tus partidas', icon: BookOpen }
+          : { to: '/app/curso', label: 'Vista general', hint: 'Unirte y ver tu puntaje', icon: BookOpen },
+      ],
+    },
     {
       title: 'Evaluaciones en vivo',
       items: teacher

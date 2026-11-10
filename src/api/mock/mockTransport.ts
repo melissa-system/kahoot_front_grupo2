@@ -181,6 +181,23 @@ export const mockTransport: HttpTransport = async ({ method, path, body, token }
       return isChat ? mockChat(b as unknown as QuizChatRequest) : mockQuestionBatch(me.id, owned.id, b);
     }
     const quiz = ownQuiz(seg[1]);
+    if (seg.length === 3 && seg[2] === 'duplicate' && method === 'POST') {
+      const profile = data.profiles.find((p) => p.userId === me.id);
+      if ((profile?.role ?? me.role) !== 'teacher') fail(403, 'Solo el profesor puede crear y dirigir cuestionarios');
+      const copy = {
+        ...quiz,
+        id: uuid(),
+        title: `Copia de ${quiz.title}`.slice(0, 120),
+        createdAt: now,
+        updatedAt: now,
+      };
+      data.quizzes.push(copy);
+      for (const question of data.questions.filter((item) => item.quizId === quiz.id)) {
+        data.questions.push({ ...question, id: uuid(), quizId: copy.id });
+      }
+      save();
+      return copy;
+    }
     if (seg.length === 3 && seg[2] === 'image') {
       if (method === 'PUT') {
         const file = body instanceof FormData ? body.get('file') : null;
